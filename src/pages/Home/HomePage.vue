@@ -9,14 +9,13 @@ import VisitsView from '@/components/VisitsView.vue'
 import ReportsView from '@/components/ReportsView.vue'
 
 // State management
-const currentView = ref('dashboard') // 'dashboard', 'clients', 'visits', 'reports', 'checkin', 'checkout', 'signature'
+const currentView = ref('dashboard')
 const clients = ref([])
 const visits = ref([])
 const stats = ref({})
 const selectedClient = ref(null)
 const loading = ref(false)
 const locationLoading = ref(false)
-const error = ref(null)
 const notification = ref({
   show: false,
   message: '',
@@ -89,7 +88,6 @@ const toggleSidebar = () => {
 
 const handleNavigation = (route) => {
   currentView.value = route
-  // Only fetch dashboard data here, other views handle their own data
   if (route === 'dashboard') {
     fetchDashboardData()
   }
@@ -101,7 +99,7 @@ const goBack = () => {
   }
 }
 
-// Data fetching functions - Only dashboard data is fetched here
+// Data fetching
 const fetchDashboardData = async () => {
   try {
     loading.value = true
@@ -135,7 +133,6 @@ const fetchDashboardData = async () => {
   }
 }
 
-// Remove the individual fetch functions since components handle their own data
 // Location functions
 const getCurrentLocation = () => {
   return new Promise((resolve, reject) => {
@@ -232,7 +229,7 @@ const confirmCheckIn = async () => {
   try {
     const currentLocation = await getCurrentLocation()
 
-    const response = await axiosInstance.post('/api/evv/visits/', {
+    const response = await axiosInstance.post('/api/evv/visits/checkin/', {
       client: selectedClient.value.id,
       check_in: new Date().toISOString(),
       start_lat: currentLocation.latitude,
@@ -265,29 +262,30 @@ const confirmCheckOut = async () => {
   try {
     const currentLocation = await getCurrentLocation()
 
-    const formData = new FormData()
-    formData.append('client', selectedClient.value.id)
-    formData.append('check_out', new Date().toISOString())
-    formData.append('end_lat', currentLocation.latitude)
-    formData.append('end_lng', currentLocation.longitude)
-    formData.append('services_offered', JSON.stringify(selectedServices.value))
-    formData.append('notes', visitNotes.value || '')
+    // Prepare the data object for the API
+    const visitData = {
+      client: selectedClient.value.id,
+      check_out: new Date().toISOString(),
+      end_lat: currentLocation.latitude,
+      end_lng: currentLocation.longitude,
+      services_offered: JSON.stringify(selectedServices.value),
+      notes: visitNotes.value || ''
+    }
 
+    // Add base64 signatures if they exist
     if (clientSignature.value) {
-      const clientBlob = dataURLtoBlob(clientSignature.value)
-      formData.append('client_signature', clientBlob, 'client_signature.png')
+      // Extract base64 data from data URL
+      const base64Data = clientSignature.value.split(',')[1]
+      visitData.client_signature = base64Data
     }
 
     if (caregiverSignature.value) {
-      const caregiverBlob = dataURLtoBlob(caregiverSignature.value)
-      formData.append('caregiver_signature', caregiverBlob, 'caregiver_signature.png')
+      // Extract base64 data from data URL
+      const base64Data = caregiverSignature.value.split(',')[1]
+      visitData.caregiver_signature = base64Data
     }
 
-    const response = await axiosInstance.patch(`/api/evv/visits/${currentVisit.value.id}/`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
+    const response = await axiosInstance.patch(`/api/evv/visits/${currentVisit.value.id}/checkout/`, visitData)
 
     currentVisit.value = null
     isCheckedIn.value = false
@@ -404,19 +402,6 @@ const captureSignature = () => {
   showNotification(`${signatureType.value} signature captured successfully`)
 }
 
-const dataURLtoBlob = (dataURL) => {
-  const byteString = atob(dataURL.split(',')[1])
-  const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0]
-  const ab = new ArrayBuffer(byteString.length)
-  const ia = new Uint8Array(ab)
-
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i)
-  }
-
-  return new Blob([ab], { type: mimeString })
-}
-
 const openSignatureModal = (type) => {
   signatureType.value = type
   currentView.value = 'signature'
@@ -438,7 +423,7 @@ onMounted(() => {
     <TheSidebar :sidebarOpen="sidebarOpen" @toggleSidebar="toggleSidebar" @navigate="handleNavigation" />
 
     <!-- Main Content -->
-    <div class="flex-1 flex mt-20 flex-col lg:ml-0">
+    <div class="flex-1 flex mt-17 flex-col lg:ml-0">
       <!-- Mobile sidebar toggle -->
       <div class="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
         <button @click="toggleSidebar" class="p-2 rounded-md text-gray-500 hover:text-gray-700">
@@ -450,7 +435,7 @@ onMounted(() => {
 
       <main class="flex-1 p-6">
         <!-- Loading overlay -->
-        <div v-if="loading"
+        <div v-if="loading && currentView === 'dashboard'"
           class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
           <div class="flex flex-col items-center">
             <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-sky-blue mb-4"></div>
@@ -497,8 +482,6 @@ onMounted(() => {
           </div>
         </transition>
 
-        <!-- Dynamic Content Based on Current View -->
-
         <!-- Dashboard View -->
         <div v-if="currentView === 'dashboard'">
           <!-- Dashboard Header -->
@@ -520,10 +503,10 @@ onMounted(() => {
           </div>
 
           <!-- Stats Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div class="flex items-center">
-                <div class="bg-sky-blue/10 p-3 rounded-lg">
+                <div class="bg-sky-blue/10 p-1 rounded-lg">
                   <svg class="w-6 h-6 text-sky-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -538,7 +521,7 @@ onMounted(() => {
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div class="flex items-center">
-                <div class="bg-green-100 p-3 rounded-lg">
+                <div class="bg-green-100 p-1 rounded-lg">
                   <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -553,7 +536,7 @@ onMounted(() => {
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div class="flex items-center">
-                <div class="bg-orange/10 p-3 rounded-lg">
+                <div class="bg-orange/10 p-1 rounded-lg">
                   <svg class="w-6 h-6 text-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -568,7 +551,7 @@ onMounted(() => {
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
               <div class="flex items-center">
-                <div class="bg-purple-100 p-3 rounded-lg">
+                <div class="bg-purple-100 p-1 rounded-lg">
                   <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -926,7 +909,7 @@ onMounted(() => {
         <VisitsView v-else-if="currentView === 'visits'" />
 
         <!-- Reports View Component -->
-        <ReportsView v-else-if="currentView === 'reports'" />
+        <ReportsView v-else-if="currentView === 'services'" />
 
       </main>
     </div>

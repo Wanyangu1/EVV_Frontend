@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
   <header class="fixed w-full z-50 bg-navy-blue border-sky-blue/20 shadow-sm">
     <!-- Main Navigation -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div class="flex justify-between items-center h-20">
+      <div class="flex justify-between items-center h-17">
         <!-- Logo and Mobile Menu Button (left side) -->
         <div class="flex items-center w-full lg:w-auto">
           <!-- Logo -->
@@ -67,25 +67,6 @@ onBeforeUnmount(() => {
             <span class="ml-3 text-xl font-bold text-white hidden lg:block">DivineAngelCare</span>
           </router-link>
         </div>
-
-        <!-- Mobile menu button -->
-        <button @click="isMobileMenuOpen = !isMobileMenuOpen"
-          class="lg:hidden text-sky-blue p-2 rounded-md hover:bg-sky-blue/10 focus:outline-none transition-all duration-300 group">
-          <div class="space-y-1.5">
-            <span :class="[
-              'block h-0.5 w-6 bg-sky-blue transition-all duration-300',
-              isMobileMenuOpen ? 'rotate-45 translate-y-2' : ''
-            ]"></span>
-            <span :class="[
-              'block h-0.5 w-6 bg-sky-blue transition-all duration-300',
-              isMobileMenuOpen ? 'opacity-0' : 'opacity-100'
-            ]"></span>
-            <span :class="[
-              'block h-0.5 w-6 bg-sky-blue transition-all duration-300',
-              isMobileMenuOpen ? '-rotate-45 -translate-y-2' : ''
-            ]"></span>
-          </div>
-        </button>
 
         <!-- User Controls (right side) -->
         <div class="flex items-center space-x-4">
@@ -117,7 +98,7 @@ onBeforeUnmount(() => {
                 <div class="px-4 py-2 border-t border-sky-blue/10 bg-sky-blue/5">
                   <button
                     class="w-full text-center text-sm text-sky-blue font-medium hover:text-navy-blue transition-colors">
-                    View All Notifications
+                    No Notifications
                   </button>
                 </div>
               </div>
