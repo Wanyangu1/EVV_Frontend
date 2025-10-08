@@ -1,10 +1,11 @@
 <script setup>
 import useAuth from '@/composables/useAuth'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import logoImage from '@/assets/logos/logo1.png'
+import logoImage from '@/assets/logos/logo2.png'
+import bgImage from '@/assets/General/senior-reading.jpg'
 
 // Health service specific images
-const backgroundImage = ref('https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')
+const backgroundImage = ref(bgImage)
 
 const { email, password, login, errorMessage } = useAuth()
 const showPassword = ref(false)
@@ -38,12 +39,12 @@ function updateArizonaTime() {
 let intervalId
 
 onMounted(() => {
-  updateArizonaTime() 
-  intervalId = setInterval(updateArizonaTime, 1000) 
+  updateArizonaTime()
+  intervalId = setInterval(updateArizonaTime, 1000)
 })
 
 onBeforeUnmount(() => {
-  clearInterval(intervalId) 
+  clearInterval(intervalId)
 })
 
 const handleLogin = async () => {
@@ -54,36 +55,35 @@ const handleLogin = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-blue-50 to-blue-100">
-    <!-- Left Side: Health Service Information -->
+  <div class="min-h-screen flex flex-col md:flex-row bg-gradient-to-br from-sky-50 to-white">
+    <!-- Left Side: Health Service Information (Hidden on mobile) -->
     <div class="hidden md:flex md:w-1/2 relative">
       <!-- Background Image -->
       <img :src="backgroundImage" alt="Healthcare background" class="absolute inset-0 w-full h-full object-cover" />
 
       <!-- Gradient Overlay -->
-      <div class="absolute inset-0 bg-gradient-to-t from-blue-900/60 to-blue-800/30"></div>
+      <div class="absolute inset-0 bg-gradient-to-t from-navy-900/70 to-navy-800/40"></div>
 
       <!-- Content Overlay -->
-      <div class="relative z-10 flex flex-col justify-between p-12 text-white h-full">
-        <!-- Main Logo and Title -->
-        <div class="flex flex-col items-center">
-          <div class="bg-white/50 backdrop-blur-sm p-4 rounded-lg mb-4 text-center">
-            <img :src="logoImage" class="h-12 mx-auto" alt="City Radius CHS" />
+      <div class="relative z-10 flex flex-col mt-4 justify-between p-6 text-white h-screen">
+        <!-- Main Logo and Title - Hidden on small screens -->
+        <div class="hidden md:flex flex-col items-center">
+          <div class="bg-white/30 backdrop-blur-sm p-4 rounded-xl text-center">
+            <img :src="logoImage" class="h-16 mx-auto" alt="City Radius CHS" />
           </div>
-          <h2 class="text-2xl font-bold text-gray-800">Employee Registration</h2>
         </div>
 
         <!-- Featured Content -->
-        <div class="mb-20">
-          <h1 class="text-4xl font-bold mb-4">Employee Attendance System</h1>
+        <div class="mb-4">
+          <h1 class="text-3xl font-bold mb-4">Electronic Visit Verification (EVV)</h1>
           <p class="text-lg opacity-90 mb-8">
             Recording your time helps us ensure proper staffing to serve our community's health needs.
           </p>
 
           <!-- Health Service Info -->
-          <div class="bg-white/10 backdrop-blur-sm p-6 rounded-xl max-w-md">
+          <div class="bg-white/20 backdrop-blur-sm p-6 rounded-xl max-w-md border border-white/30">
             <div class="flex items-start">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-blue-200 mr-4" fill="none"
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-sky-200 mr-4" fill="none"
                 viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -91,7 +91,7 @@ const handleLogin = async () => {
               <div>
                 <p class="mb-2">Please record your attendance accurately to help us:</p>
                 <ul class="list-disc pl-5 space-y-1">
-                  <li>Maintain proper staffing levels</li>
+                  <li>Improve Accountability</li>
                   <li>Track service hours</li>
                   <li>Ensure payroll accuracy</li>
                 </ul>
@@ -101,7 +101,7 @@ const handleLogin = async () => {
         </div>
 
         <!-- Current Time Display (Desktop) -->
-        <div class="bg-white/10 backdrop-blur-sm p-4 rounded-lg" :class="timeDisplayWidth">
+        <div class="bg-white/20 backdrop-blur-sm p-4 rounded-lg border border-white/30" :class="timeDisplayWidth">
           <p class="text-sm opacity-90">Current Date & Time:</p>
           <p class="text-xl font-mono tracking-tight">{{ currentDateTime }}</p>
         </div>
@@ -109,29 +109,30 @@ const handleLogin = async () => {
     </div>
 
     <!-- Right Side: Attendance Form -->
-    <div class="w-full md:w-1/2 flex items-center justify-center p-6 md:p-12">
+    <div class="w-full md:w-1/2 flex items-center justify-center p-4 md:p-12">
       <div class="w-full max-w-md">
-        <!-- Mobile Logo -->
-        <div class="md:hidden flex justify-center mb-8">
-          <div class="bg-blue-50 p-4 rounded-lg text-center">
-            <img :src="logoImage" class="h-16 mx-auto" alt="Logo" />
+        <!-- Mobile Logo - Completely removed for small screens -->
+        <!-- <div class="md:hidden flex justify-center mb-6">
+          <div class="bg-sky-50 p-4 rounded-xl text-center border border-sky-100">
+            <img :src="logoImage" class="h-14 mx-auto" alt="Logo" />
           </div>
-        </div>
+        </div> -->
 
         <!-- Attendance Card -->
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+        <div class="bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-100">
           <!-- Card Header -->
-          <div class="bg-[color:#217566] p-6 text-center">
-            <h2 class="text-2xl font-bold text-white">Employee Attendance</h2>
-            <p class="text-blue-100 mt-1">City Radius Community Health Service</p>
+          <div class="bg-navy-700 p-4 text-center">
+            <h2 class="text-2xl font-bold text-white">Electronic Visit Verification</h2>
+            <p class="text-sky-200 mt-1">Divine Angel Care LLC</p>
           </div>
 
           <!-- Card Body -->
-          <div class="p-8">
+          <div class="p-6 md:p-8">
             <!-- Current Time Display (Mobile) -->
-            <div class="md:hidden bg-blue-50 p-4 rounded-lg mb-6 text-center" :class="timeDisplayWidth">
-              <p class="text-sm text-blue-800">Current Date & Time:</p>
-              <p class="text-lg font-mono tracking-tight text-blue-900">{{ currentDateTime }}</p>
+            <div class="md:hidden bg-sky-50 p-4 rounded-lg mb-6 text-center border border-sky-100"
+              :class="timeDisplayWidth">
+              <p class="text-sm text-navy-700 font-medium">Current Date & Time:</p>
+              <p class="text-lg font-mono tracking-tight text-navy-800">{{ currentDateTime }}</p>
             </div>
 
             <!-- Login Form -->
@@ -155,7 +156,7 @@ const handleLogin = async () => {
 
               <!-- Employee ID Field -->
               <div>
-                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Employee Email</label>
+                <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Caregiver Email</label>
                 <div class="relative">
                   <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none"
@@ -165,7 +166,7 @@ const handleLogin = async () => {
                     </svg>
                   </div>
                   <input v-model="email" type="text" id="employee-id" placeholder="Your employee ID"
-                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 transition-colors"
                     required />
                 </div>
               </div>
@@ -183,7 +184,7 @@ const handleLogin = async () => {
                   </div>
                   <input v-model="password" :type="showPassword ? 'text' : 'password'" id="password"
                     placeholder="••••••••"
-                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
+                    class="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-orange-500 focus:border-orange-500 transition-colors"
                     required />
                   <button type="button" @click="showPassword = !showPassword"
                     class="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -199,17 +200,18 @@ const handleLogin = async () => {
                 <div class="mt-2 flex justify-end">
                   <p class="text-sm text-gray-600">
                     <a href="mailto:mycityradius5@gmail.com"
-                      class="font-medium text-blue-600 hover:text-blue-500">Contact Admin If Forgot
+                      class="font-medium text-orange-600 hover:text-orange-500 transition-colors">Contact Admin If
+                      Forgot
                       credentials</a>
                   </p>
                 </div>
               </div>
 
               <!-- Location Verification -->
-              <div class="bg-blue-50 p-4 rounded-lg">
+              <div class="bg-sky-50 p-4 rounded-lg border border-sky-100">
                 <label class="flex items-start">
-                  <input type="checkbox" class="mt-1 mr-2" required />
-                  <span class="text-sm text-blue-800">I confirm that I am physically present at my designated work
+                  <input type="checkbox" class="mt-1 mr-2 rounded text-orange-500 focus:ring-orange-500" required />
+                  <span class="text-sm text-navy-700">I confirm that I am physically present at my designated work
                     location</span>
                 </label>
               </div>
@@ -217,7 +219,7 @@ const handleLogin = async () => {
               <!-- Submit Button -->
               <div>
                 <button type="submit" :disabled="isLoading"
-                  class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[color:#217566] hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300"
+                  class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all duration-300"
                   :class="{ 'opacity-70 cursor-not-allowed': isLoading }">
                   <svg v-if="isLoading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
                     xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -239,23 +241,23 @@ const handleLogin = async () => {
 
           <!-- Admin Login Card Footer -->
           <div
-            class="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-5 text-center rounded-b-lg border-t border-gray-200">
+            class="bg-gradient-to-r from-sky-50 to-white px-6 py-5 text-center rounded-b-lg border-t border-gray-200">
             <div class="flex items-center justify-center space-x-2">
               <!-- Shield Admin Icon -->
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24"
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-navy-600" fill="none" viewBox="0 0 24 24"
                 stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
 
-              <p class="text-sm font-medium text-gray-600">
+              <p class="text-sm font-medium text-navy-700">
                 Administrator Access
               </p>
             </div>
 
             <div class="mt-2">
               <a href="http://backend.mycityradiusattendance.com/admin" target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-navy-600 to-navy-700 hover:from-navy-700 hover:to-navy-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-navy-500">
                 <!-- Lock Icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24"
                   stroke="currentColor">
@@ -265,16 +267,6 @@ const handleLogin = async () => {
                 Access Admin Dashboard
               </a>
             </div>
-          </div>
-        </div>
-
-        <!-- Footer -->
-        <div class="mt-8 text-center text-sm text-gray-500">
-          <p>&copy; 2025 City Radius Community Health Service. All rights reserved.</p>
-          <div class="mt-2">
-            <router-link to="/privacy" class="text-gray-500 hover:text-gray-700">Privacy Policy</router-link>
-            <span class="mx-2">·</span>
-            <router-link to="/terms" class="text-gray-500 hover:text-gray-700">Terms of Use</router-link>
           </div>
         </div>
       </div>
@@ -334,14 +326,117 @@ a {
 input:focus,
 button:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.3);
 }
 
 /* Responsive adjustments */
 @media (max-width: 767px) {
   .min-h-screen {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
   }
+
+  /* Ensure form is the primary focus on mobile */
+  .md\\:hidden+div {
+    margin-top: 0;
+  }
+}
+
+/* Custom color definitions for navy blue, sky blue, and orange */
+.bg-navy-700 {
+  background-color: #1e3a8a;
+}
+
+.bg-navy-600 {
+  background-color: #2563eb;
+}
+
+.bg-navy-900 {
+  background-color: #0f172a;
+}
+
+.text-navy-700 {
+  color: #1e3a8a;
+}
+
+.text-navy-800 {
+  color: #1e40af;
+}
+
+.border-navy-500 {
+  border-color: #3b82f6;
+}
+
+.from-navy-600 {
+  --tw-gradient-from: #2563eb;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(37, 99, 235, 0));
+}
+
+.to-navy-700 {
+  --tw-gradient-to: #1d4ed8;
+}
+
+.hover\\:from-navy-700:hover {
+  --tw-gradient-from: #1d4ed8;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(29, 78, 216, 0));
+}
+
+.hover\\:to-navy-800:hover {
+  --tw-gradient-to: #1e40af;
+}
+
+.bg-sky-50 {
+  background-color: #f0f9ff;
+}
+
+.text-sky-200 {
+  color: #bae6fd;
+}
+
+.border-sky-100 {
+  border-color: #e0f2fe;
+}
+
+.from-sky-50 {
+  --tw-gradient-from: #f0f9ff;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(240, 249, 255, 0));
+}
+
+.bg-orange-500 {
+  background-color: #f97316;
+}
+
+.bg-orange-600 {
+  background-color: #ea580c;
+}
+
+.from-orange-500 {
+  --tw-gradient-from: #f97316;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(249, 115, 22, 0));
+}
+
+.to-orange-600 {
+  --tw-gradient-to: #ea580c;
+}
+
+.hover\\:from-orange-600:hover {
+  --tw-gradient-from: #ea580c;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(234, 88, 12, 0));
+}
+
+.hover\\:to-orange-700:hover {
+  --tw-gradient-to: #c2410c;
+}
+
+.text-orange-600 {
+  color: #ea580c;
+}
+
+.focus\\:ring-orange-500:focus {
+  --tw-ring-color: #f97316;
+}
+
+.focus\\:border-orange-500:focus {
+  border-color: #f97316;
 }
 </style>

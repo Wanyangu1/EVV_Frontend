@@ -8,13 +8,13 @@ const { name, email, password, signup, authError } = useAuth()
 
 <template>
   <TheNavbar />
-  <div class="min-h-screen bg-gradient-to-br from-[#f0f9ff] to-[#e0f2fe]">
+  <div class="min-h-screen bg-gradient-to-br from-[#f8fafc] to-[#f1f5f9]">
     <main class="flex flex-col lg:flex-row min-h-[calc(100vh-80px)] w-full">
-      <!-- Healthcare Hero Section - Left Half -->
+      <!-- Healthcare Hero Section - Hidden on mobile, shown on larger screens -->
       <div
-        class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#0369a1] to-[#0ea5e9] text-white relative overflow-hidden">
+        class="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[#1e40af] to-[#3b82f6] text-white relative overflow-hidden">
         <div
-          class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1579684385127-1ef15d508118?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-20">
+          class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80')] bg-cover bg-center opacity-15">
         </div>
         <div class="relative z-10 flex flex-col justify-center p-12 w-full h-full">
           <div class="max-w-md mx-auto">
@@ -24,14 +24,14 @@ const { name, email, password, signup, authError } = useAuth()
               </div>
               <h2
                 class="ml-3 text-2xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-100">
-                Create New Employee Account
+                Join Our Healthcare Team
               </h2>
             </div>
 
-            <h1 class="text-4xl font-bold mb-6 leading-tight">Serving Our Community Together</h1>
+            <h1 class="text-4xl font-bold mb-6 leading-tight">Empowering Community Health Together</h1>
             <p class="text-lg text-blue-100 mb-10">
-              Your dedication to community health makes a difference every day. This portal helps
-              you focus on what matters most.
+              Welcome to City Radius CHS - where your dedication transforms lives and strengthens our community's
+              wellbeing.
             </p>
 
             <div class="space-y-6">
@@ -41,13 +41,13 @@ const { name, email, password, signup, authError } = useAuth()
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
                     stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                   </svg>
                 </div>
                 <div>
-                  <h3 class="font-bold text-lg mb-1">Community Impact</h3>
+                  <h3 class="font-bold text-lg mb-1">Modern Healthcare Platform</h3>
                   <p class="text-blue-100">
-                    Track your hours contributing to vital health services
+                    Access cutting-edge tools designed specifically for community health professionals
                   </p>
                 </div>
               </div>
@@ -62,9 +62,9 @@ const { name, email, password, signup, authError } = useAuth()
                   </svg>
                 </div>
                 <div>
-                  <h3 class="font-bold text-lg mb-1">HIPAA Secure</h3>
+                  <h3 class="font-bold text-lg mb-1">Enterprise Security</h3>
                   <p class="text-blue-100">
-                    Patient privacy protected with enterprise-grade security
+                    HIPAA compliant with military-grade encryption protecting patient data
                   </p>
                 </div>
               </div>
@@ -79,8 +79,8 @@ const { name, email, password, signup, authError } = useAuth()
                   </svg>
                 </div>
                 <div>
-                  <h3 class="font-bold text-lg mb-1">Team Coordination</h3>
-                  <p class="text-blue-100">Ensuring proper staffing for community health needs</p>
+                  <h3 class="font-bold text-lg mb-1">Collaborative Care</h3>
+                  <p class="text-blue-100">Seamlessly coordinate with multidisciplinary healthcare teams</p>
                 </div>
               </div>
             </div>
@@ -88,17 +88,17 @@ const { name, email, password, signup, authError } = useAuth()
         </div>
       </div>
 
-      <!-- Signup Form Section -->
-      <div class="w-full lg:w-1/2 flex items-center justify-center p-6 lg:8">
+      <!-- Signup Form Section - Full width on mobile, half on larger screens -->
+      <div class="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-8">
         <div
           class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
           <div class="flex flex-col items-center mb-8">
             <div class="mb-4 p-3 bg-blue-50 rounded-full">
               <img src="@/assets/logos/logo1.png" class="h-12" alt="City Radius CHS" />
             </div>
-            <h2 class="text-3xl font-bold text-gray-800 text-center">Onboard A New Employee</h2>
+            <h2 class="text-3xl font-bold text-gray-800 text-center">Create Employee Account</h2>
             <p class="text-gray-600 mt-2 text-center">
-              Register to access the employee portal for City Radius Community Health Services
+              Register for the City Radius Community Health Services employee portal
             </p>
           </div>
 
@@ -115,7 +115,7 @@ const { name, email, password, signup, authError } = useAuth()
                     </svg>
                   </div>
                   <input v-model="name" type="text" id="name" placeholder="Enter your full name"
-                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#0369a1]/50 focus:border-[#0369a1] transition-all duration-200 hover:border-gray-300" />
+                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#1e40af]/50 focus:border-[#1e40af] transition-all duration-200 hover:border-gray-300" />
                 </div>
               </div>
 
@@ -130,7 +130,7 @@ const { name, email, password, signup, authError } = useAuth()
                     </svg>
                   </div>
                   <input v-model="email" type="email" id="email" placeholder="your.name@cityradiuschs.org"
-                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#0369a1]/50 focus:border-[#0369a1] transition-all duration-200 hover:border-gray-300" />
+                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#1e40af]/50 focus:border-[#1e40af] transition-all duration-200 hover:border-gray-300" />
                 </div>
               </div>
 
@@ -145,7 +145,7 @@ const { name, email, password, signup, authError } = useAuth()
                     </svg>
                   </div>
                   <input v-model="password" type="password" id="password" placeholder="Create a secure password"
-                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#0369a1]/50 focus:border-[#0369a1] transition-all duration-200 hover:border-gray-300" />
+                    class="pl-10 block w-full border border-gray-200 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-[#1e40af]/50 focus:border-[#1e40af] transition-all duration-200 hover:border-gray-300" />
                 </div>
                 <div class="mt-2 flex items-center text-xs text-gray-500">
                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24"
@@ -172,20 +172,20 @@ const { name, email, password, signup, authError } = useAuth()
             <div class="flex items-start">
               <div class="flex items-center h-5">
                 <input id="terms" name="terms" type="checkbox" required
-                  class="h-4 w-4 text-[#0369a1] focus:ring-[#0369a1] border-gray-300 rounded" />
+                  class="h-4 w-4 text-[#1e40af] focus:ring-[#1e40af] border-gray-300 rounded" />
               </div>
               <div class="ml-3 text-sm">
                 <label for="terms" class="text-gray-700">
                   As an ADMIN, I agree to the
-                  <a href="#" class="text-[#0369a1] hover:underline font-medium">terms of service</a>
+                  <a href="#" class="text-[#1e40af] hover:underline font-medium">terms of service</a>
                   and
-                  <a href="#" class="text-[#0369a1] hover:underline font-medium">privacy policy</a>
+                  <a href="#" class="text-[#1e40af] hover:underline font-medium">privacy policy</a>
                 </label>
               </div>
             </div>
 
             <button type="submit"
-              class="w-full bg-gradient-to-r from-[#0369a1] to-[#0284c7] text-white py-3 px-6 rounded-lg hover:opacity-90 transition-opacity duration-200 shadow-md flex items-center justify-center group">
+              class="w-full bg-gradient-to-r from-[#1e40af] to-[#3b82f6] text-white py-3 px-6 rounded-lg hover:opacity-90 transition-opacity duration-200 shadow-md flex items-center justify-center group">
               <span class="group-hover:translate-x-1 transition-transform duration-200">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24"
                   stroke="currentColor">
@@ -193,12 +193,12 @@ const { name, email, password, signup, authError } = useAuth()
                     d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                 </svg>
               </span>
-              <span class="font-medium">Create Healthcare Account</span>
+              <span class="font-medium">Create Employee Account</span>
             </button>
 
             <div class="text-center text-sm text-gray-600 pt-2 border-t border-gray-100">
-              Already serving with us?
-              <router-link to="/" class="text-[#0369a1] font-medium hover:underline ml-1">Sign in to your
+              Already have an account?
+              <router-link to="/" class="text-[#1e40af] font-medium hover:underline ml-1">Sign in to your
                 account</router-link>
             </div>
           </form>
