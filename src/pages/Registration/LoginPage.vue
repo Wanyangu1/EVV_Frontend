@@ -1,7 +1,7 @@
 <script setup>
 import useAuth from '@/composables/useAuth'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import logoImage from '@/assets/logos/logo2.png'
+import logoImage from '@/assets/logos/logo.jpg'
 import bgImage from '@/assets/General/senior-reading.jpg'
 
 // Health service specific images
@@ -65,11 +65,11 @@ const handleLogin = async () => {
       <div class="absolute inset-0 bg-gradient-to-t from-navy-900/70 to-navy-800/40"></div>
 
       <!-- Content Overlay -->
-      <div class="relative z-10 flex flex-col mt-4 justify-between p-6 text-white h-screen">
+      <div class="relative z-10 flex flex-col mt-2 justify-between p-4 text-white h-screen">
         <!-- Main Logo and Title - Hidden on small screens -->
         <div class="hidden md:flex flex-col items-center">
-          <div class="bg-white/30 backdrop-blur-sm p-4 rounded-xl text-center">
-            <img :src="logoImage" class="h-16 mx-auto" alt="City Radius CHS" />
+          <div class="bg-black/70 backdrop-blur-sm p-2 rounded-xl text-center">
+            <img :src="logoImage" class="h-16 w-16 mx-auto" alt="City Radius CHS" />
           </div>
         </div>
 
@@ -123,7 +123,7 @@ const handleLogin = async () => {
           <!-- Card Header -->
           <div class="bg-navy-700 p-4 text-center">
             <h2 class="text-2xl font-bold text-white">Electronic Visit Verification</h2>
-            <p class="text-sky-200 mt-1">Divine Angel Care LLC</p>
+            <p class="text-sky-200 mt-1">Brightpath Technologies EVV</p>
           </div>
 
           <!-- Card Body -->
@@ -256,7 +256,7 @@ const handleLogin = async () => {
             </div>
 
             <div class="mt-2">
-              <a href="http://backend.mycityradiusattendance.com/admin" target="_blank" rel="noopener noreferrer"
+              <a href="https://divinecarebackend.jikubaliafrica.org/admin" target="_blank" rel="noopener noreferrer"
                 class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-navy-600 to-navy-700 hover:from-navy-700 hover:to-navy-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-navy-500">
                 <!-- Lock Icon -->
                 <svg xmlns="http://www.w3.org/2000/svg" class="-ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24"

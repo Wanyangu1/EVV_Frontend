@@ -79,7 +79,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 p-2 md:p-2">
+  <div class="min-h-screen bg-gray-50 p-0 md:p-2">
     <!-- Header -->
     <div class="mb-8">
       <div class="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -192,7 +192,7 @@ onMounted(() => {
     </div>
 
     <!-- Services Grid -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
       <div class="flex items-center justify-between mb-6">
         <h2 class="text-xl font-semibold text-gray-900">Available Services</h2>
         <span class="text-sm text-gray-500">{{ filteredServices.length }} services</span>

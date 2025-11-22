@@ -1,41 +1,73 @@
 <script setup>
-import { ref, defineEmits } from 'vue'
+import { ref, defineEmits, onMounted } from 'vue'
 import useLogout from '@/composables/useLogout'
 
 const { logout } = useLogout()
 const emit = defineEmits(['toggleSidebar', 'navigate'])
 
+// reactive state
 const sidebarOpen = ref(true)
+const isLarge = ref(false)
 
-const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
+// initialize based on screen size (desktop open, mobile closed)
+onMounted(() => {
+  const mq = window.matchMedia('(min-width: 1024px)')
+  const setInitial = (matches) => {
+    isLarge.value = matches
+    sidebarOpen.value = matches // open on large, closed on small
+  }
+  setInitial(mq.matches)
+
+  const handler = (e) => {
+    // when switching to large, ensure sidebar opens; when switching to small, keep it closed
+    setInitial(e.matches)
+  }
+
+  if (mq.addEventListener) mq.addEventListener('change', handler)
+  else mq.addListener(handler)
+})
+
+// explicit open/close
+const openSidebar = () => {
+  sidebarOpen.value = true
   emit('toggleSidebar')
+}
+const closeSidebar = () => {
+  sidebarOpen.value = false
+  emit('toggleSidebar')
+}
+const toggleSidebar = () => {
+  sidebarOpen.value ? closeSidebar() : openSidebar()
 }
 
 const handleNavigation = (route) => {
   emit('navigate', route)
+  // auto-close on mobile after navigation
+  if (!isLarge.value) closeSidebar()
 }
 
 const handleLogout = () => {
   logout()
+  if (!isLarge.value) closeSidebar()
 }
 </script>
 
 <template>
   <div class="flex">
     <!-- Sidebar -->
-    <aside :class="[
-      'fixed lg:relative inset-y-0 left-0 top-17 h-screen z-30 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out flex flex-col',
-      sidebarOpen ? 'w-50 translate-x-0' : 'w-20 -translate-x-full lg:translate-x-0'
+    <aside @click.stop :class="[
+      'fixed lg:relative inset-y-0 left-0 mt-17 bg-white border-r border-gray-200 transform transition-all duration-300 ease-in-out flex flex-col z-40',
+      sidebarOpen ? 'w-50 translate-x-0' : '-translate-x-full lg:translate-x-0 lg:w-20'
     ]">
       <!-- Sidebar Header -->
       <div class="flex items-center justify-between h-16 px-4 border-b border-gray-200">
         <h2 v-if="sidebarOpen" class="text-lg font-semibold text-gray-800">Dashboard</h2>
         <div v-else class="w-6"></div>
         <div class="flex items-center space-x-2">
-          <!-- Desktop Toggle Button -->
+          <!-- Desktop Toggle Button (collapse/expand width on large screens) -->
           <button @click="toggleSidebar"
-            class="hidden lg:flex p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors">
+            class="hidden lg:flex p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+            title="Toggle sidebar">
             <svg :class="[
               'w-4 h-4 transform transition-transform duration-300',
               sidebarOpen ? 'rotate-0' : 'rotate-180'
@@ -43,8 +75,10 @@ const handleLogout = () => {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
+
           <!-- Mobile Close Button -->
-          <button @click="toggleSidebar" class="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700">
+          <button v-if="sidebarOpen && !isLarge" @click="closeSidebar"
+            class="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700" title="Close sidebar">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -62,9 +96,7 @@ const handleLogout = () => {
               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
           <span v-if="sidebarOpen">Dashboard</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Dashboard</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Dashboard</span></div>
         </button>
 
         <!-- Clients -->
@@ -75,9 +107,7 @@ const handleLogout = () => {
               d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
           </svg>
           <span v-if="sidebarOpen">Clients</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Clients</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Clients</span></div>
         </button>
 
         <!-- Visits -->
@@ -88,9 +118,7 @@ const handleLogout = () => {
               d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <span v-if="sidebarOpen">Visits</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Visits</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Visits</span></div>
         </button>
 
         <!-- Services -->
@@ -101,9 +129,7 @@ const handleLogout = () => {
               d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
           <span v-if="sidebarOpen">Services</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Services</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Services</span></div>
         </button>
 
         <!-- Profile -->
@@ -114,9 +140,7 @@ const handleLogout = () => {
               d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
           <span v-if="sidebarOpen">Profile</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Profile</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Profile</span></div>
         </router-link>
 
         <!-- Settings -->
@@ -129,9 +153,7 @@ const handleLogout = () => {
               d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <span v-if="sidebarOpen">Settings</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Settings</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Settings</span></div>
         </router-link>
       </nav>
 
@@ -144,15 +166,23 @@ const handleLogout = () => {
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
           <span v-if="sidebarOpen">Logout</span>
-          <div v-else class="tooltip">
-            <span class="tooltip-text">Logout</span>
-          </div>
+          <div v-else class="tooltip"><span class="tooltip-text">Logout</span></div>
         </button>
       </div>
     </aside>
 
-    <!-- Mobile Overlay -->
-    <div v-if="sidebarOpen" @click="toggleSidebar" class="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"></div>
+    <!-- Mobile Overlay (when sidebar is open on small screens) -->
+    <div v-if="sidebarOpen && !isLarge" @click="closeSidebar" class="fixed inset-0 bg-opacity-50 z-30 lg:hidden"></div>
+
+    <!-- Floating Toggle Button (when sidebar is closed on mobile) -->
+    <button v-if="!sidebarOpen && !isLarge" @click="openSidebar"
+      class="fixed top-19 left-4 z-50 p-2 bg-white rounded-md shadow lg:hidden" aria-label="Open sidebar"
+      title="Open sidebar">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-800" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+      </svg>
+    </button>
   </div>
 </template>
 

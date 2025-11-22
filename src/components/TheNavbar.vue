@@ -58,13 +58,12 @@ onBeforeUnmount(() => {
         <!-- Logo and Mobile Menu Button (left side) -->
         <div class="flex items-center w-full lg:w-auto">
           <!-- Logo -->
-          <router-link to="/home"
-            class="text-white px-1 py-1 rounded-md flex-shrink-0 flex items-center ml-0 lg:ml-0 group relative">
+          <router-link to="/home">
             <!-- Background wrapper around logo -->
-            <div class="bg-white/90 rounded-md p-1 flex items-center justify-center shadow-lg shadow-sky-blue/20">
-              <img src="@/assets/logos/logo2.png" class="h-10 w-auto object-contain" alt="DivineAngelCare Logo" />
+            <div class="bg-black/20 rounded-md p-1 flex items-center justify-center shadow-lg shadow-sky-blue/20">
+              <img src="@/assets/logos/logo.jpg" class="h-8 w-10 object-contain" alt="DivineAngelCare Logo" />
+              <h3 class="text-blue-400 font-bold">Brightpath EVV</h3>
             </div>
-            <span class="ml-3 text-xl font-bold text-white hidden lg:block">DivineAngelCare</span>
           </router-link>
         </div>
 

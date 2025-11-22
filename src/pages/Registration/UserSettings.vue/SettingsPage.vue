@@ -83,7 +83,7 @@ onMounted(fetchSettings)
     <div class="flex flex-1">
 
       <!-- Main Content Area -->
-      <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-64' : 'lg:ml-0'">
+      <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-4' : 'lg:ml-0'">
         <div class="py-22 px-4 sm:px-6 lg:px-8">
           <div class="max-w-3xl mx-auto">
             <!-- Success Alert -->

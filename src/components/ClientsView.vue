@@ -59,11 +59,20 @@ const formatVisitTimes = (visitTimes) => {
 
 const getServiceTimesSummary = (visitTimes) => {
   const formattedTimes = formatVisitTimes(visitTimes)
-  if (formattedTimes.length === 0) return 'No scheduled visits'
+  if (!formattedTimes || formattedTimes.length === 0) return 'No scheduled visits'
 
   const dayCount = formattedTimes.length
   const timeSlots = formattedTimes.reduce((total, day) => {
-    const slots = day.times.split(',').length
+    let slots = 0
+
+    if (Array.isArray(day.times)) {
+      // If it's already an array like ['08:00', '10:00']
+      slots = day.times.length
+    } else if (typeof day.times === 'string') {
+      // If it's a comma-separated string like '08:00,10:00'
+      slots = day.times.split(',').length
+    }
+
     return total + slots
   }, 0)
 
@@ -76,7 +85,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 p-2 md:p-2">
+  <div class="min-h-screen bg-gray-50 p-0 md:p-2">
     <!-- Header -->
     <div class="mb-8">
       <div class="flex flex-col md:flex-row md:items-center justify-between">

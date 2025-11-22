@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import axiosInstance from '@/axiosconfig/axiosInstance'
 import TheNavbar from '@/components/TheNavbar.vue'
 import TheFooter from '@/components/TheFooter.vue'
@@ -25,9 +25,40 @@ const notification = ref({
 // Sidebar state
 const sidebarOpen = ref(true)
 
-// Check-in/out state
+// Check-in/out state - Load from localStorage on initialization
 const currentVisit = ref(null)
 const isCheckedIn = ref(false)
+
+// Load check-in status from localStorage on component mount
+const loadCheckInStatus = () => {
+  const savedStatus = localStorage.getItem('evv_checkin_status')
+  const savedVisit = localStorage.getItem('evv_current_visit')
+  const savedClient = localStorage.getItem('evv_selected_client')
+
+  if (savedStatus === 'true' && savedVisit && savedClient) {
+    isCheckedIn.value = true
+    currentVisit.value = JSON.parse(savedVisit)
+    selectedClient.value = JSON.parse(savedClient)
+  }
+}
+
+// Save check-in status to localStorage
+const saveCheckInStatus = () => {
+  localStorage.setItem('evv_checkin_status', isCheckedIn.value.toString())
+  if (currentVisit.value) {
+    localStorage.setItem('evv_current_visit', JSON.stringify(currentVisit.value))
+  }
+  if (selectedClient.value) {
+    localStorage.setItem('evv_selected_client', JSON.stringify(selectedClient.value))
+  }
+}
+
+// Clear check-in status from localStorage
+const clearCheckInStatus = () => {
+  localStorage.removeItem('evv_checkin_status')
+  localStorage.removeItem('evv_current_visit')
+  localStorage.removeItem('evv_selected_client')
+}
 
 // Signature state
 const clientSignature = ref(null)
@@ -66,8 +97,43 @@ const currentDate = computed(() => {
 const currentTime = computed(() => {
   return new Date().toLocaleTimeString('en-US', {
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    second: '2-digit'
   })
+})
+
+// Enhanced stats with real-time calculations
+const enhancedStats = computed(() => {
+  const completedVisits = visits.value.filter(v => v.status === 'completed')
+  const pendingVisits = visits.value.filter(v => v.status !== 'completed')
+
+  // Calculate total hours from completed visits
+  const totalHours = completedVisits.reduce((total, visit) => {
+    return total + parseFloat(visit.hours_worked || 0)
+  }, 0)
+
+  return {
+    totalClients: clients.value.length,
+    assignedClients: assignedClients.value.length,
+    completedVisits: completedVisits.length,
+    pendingVisits: pendingVisits.length,
+    totalHours: totalHours,
+    avgHoursPerVisit: completedVisits.length > 0 ? (totalHours / completedVisits.length).toFixed(2) : 0
+  }
+})
+
+// Current visit duration for active check-ins
+const currentVisitDuration = computed(() => {
+  if (!isCheckedIn.value || !currentVisit.value || !currentVisit.value.check_in_time) return '0:00'
+
+  const checkInTime = new Date(currentVisit.value.check_in_time)
+  const now = new Date()
+  const diffMs = now - checkInTime
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHrs = Math.floor(diffMins / 60)
+  const remainingMins = diffMins % 60
+
+  return `${diffHrs}:${remainingMins.toString().padStart(2, '0')}`
 })
 
 // Helper functions
@@ -111,19 +177,24 @@ const fetchDashboardData = async () => {
     clients.value = clientsRes.data
     visits.value = visitsRes.data
 
-    // Calculate stats
-    stats.value = {
-      totalClients: clients.value.length,
-      assignedClients: assignedClients.value.length,
-      completedVisits: visits.value.filter(v => v.check_out).length,
-      pendingVisits: visits.value.filter(v => !v.check_out).length,
-      totalHours: visits.value.reduce((total, visit) => {
-        if (visit.check_in && visit.check_out) {
-          const hours = (new Date(visit.check_out) - new Date(visit.check_in)) / (1000 * 60 * 60)
-          return total + hours
-        }
-        return total
-      }, 0)
+    // Check if there's an active visit that matches our stored check-in
+    if (isCheckedIn.value && currentVisit.value) {
+      const activeVisit = visits.value.find(v =>
+        v.id === currentVisit.value.id &&
+        v.status !== 'completed'
+      )
+
+      // If no active visit found, reset check-in status
+      if (!activeVisit) {
+        isCheckedIn.value = false
+        currentVisit.value = null
+        selectedClient.value = null
+        clearCheckInStatus()
+        showNotification('Previous check-in session was completed elsewhere', 'warning')
+      } else {
+        // Update current visit with latest data
+        currentVisit.value = activeVisit
+      }
     }
   } catch (err) {
     console.error('Error fetching dashboard data:', err)
@@ -133,28 +204,41 @@ const fetchDashboardData = async () => {
   }
 }
 
-// Location functions
+// Location functions - FIXED to properly preserve 6 decimal places
+// Location functions - Preserves 6 decimal places precisely
 const getCurrentLocation = () => {
   return new Promise((resolve, reject) => {
     locationLoading.value = true
+
     if (!navigator.geolocation) {
       locationLoading.value = false
       reject(new Error('Geolocation is not supported by your browser'))
-    } else {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          locationLoading.value = false
-          resolve({
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
-          })
-        },
-        (error) => {
-          locationLoading.value = false
-          reject(error)
-        }
-      )
+      return
     }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        locationLoading.value = false
+
+        // ✅ Preserve precision up to 6 decimal places
+        const latitude = parseFloat(position.coords.latitude.toFixed(6))
+        const longitude = parseFloat(position.coords.longitude.toFixed(6))
+
+        console.log('📍 Current Location (6 decimals):', { latitude, longitude })
+
+        resolve({ latitude, longitude })
+      },
+      (error) => {
+        locationLoading.value = false
+        console.error('❌ Location error:', error)
+        reject(error)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 40000,   // Allow time for precise GPS fix
+        maximumAge: 0     // Prevent cached positions
+      }
+    )
   })
 }
 
@@ -191,13 +275,13 @@ const verifyLocation = async (client) => {
       parseFloat(client.longitude)
     )
 
-    const isWithinRange = distance <= 0.2
+    const isWithinRange = distance <= 0.9
 
     locationStatus.value = {
       verified: isWithinRange,
       message: isWithinRange
         ? `Location verified. You are ${distance.toFixed(2)} miles from client.`
-        : `Location not verified. You are ${distance.toFixed(2)} miles from client (max 0.2 miles).`,
+        : `Location not verified. You are ${distance.toFixed(2)} miles from client (max 0.9 miles).`,
       distance
     }
 
@@ -213,8 +297,13 @@ const verifyLocation = async (client) => {
   }
 }
 
-// Check-in process
+// Check-in process - UPDATED with debug logging
 const initiateCheckIn = async (client) => {
+  if (isCheckedIn.value) {
+    showNotification('You are already checked in with another client', 'warning')
+    return
+  }
+
   selectedClient.value = client
   currentView.value = 'checkin'
 
@@ -229,25 +318,39 @@ const confirmCheckIn = async () => {
   try {
     const currentLocation = await getCurrentLocation()
 
-    const response = await axiosInstance.post('/api/evv/visits/checkin/', {
+    // ✅ Create payload with explicit 6 decimal places precision
+    const payload = {
       client: selectedClient.value.id,
       check_in: new Date().toISOString(),
-      start_lat: currentLocation.latitude,
-      start_lng: currentLocation.longitude,
-      service: selectedServices.value.length > 0 ? selectedServices.value[0] : null
-    })
+      start_lat: currentLocation.latitude,  // ✅ 6 decimal places precision
+      start_lng: currentLocation.longitude, // ✅ 6 decimal places precision
+      services: selectedServices.value.length > 0 ? selectedServices.value : []
+    }
+
+    console.log('Check-in payload with coordinates:', payload);
+    console.log('Coordinate precision verification:', {
+      start_lat: payload.start_lat.toString(),
+      start_lng: payload.start_lng.toString(),
+      decimal_places_lat: payload.start_lat.toString().split('.')[1]?.length || 0,
+      decimal_places_lng: payload.start_lng.toString().split('.')[1]?.length || 0
+    });
+
+    const response = await axiosInstance.post('/api/evv/visits/checkin/', payload)
 
     currentVisit.value = response.data
     isCheckedIn.value = true
+    saveCheckInStatus()
+
     currentView.value = 'dashboard'
-    showNotification('Successfully checked in')
+    showNotification(`Successfully checked in with ${selectedClient.value.first_name} ${selectedClient.value.last_name}`)
+    fetchDashboardData()
   } catch (err) {
     console.error('Error checking in:', err)
     showNotification('Failed to check in', 'error')
   }
 }
 
-// Check-out process
+// Check-out process - UPDATED with debug logging
 const initiateCheckOut = async () => {
   currentView.value = 'checkout'
 
@@ -262,27 +365,28 @@ const confirmCheckOut = async () => {
   try {
     const currentLocation = await getCurrentLocation()
 
-    // Prepare the data object for the API
     const visitData = {
       client: selectedClient.value.id,
       check_out: new Date().toISOString(),
-      end_lat: currentLocation.latitude,
-      end_lng: currentLocation.longitude,
-      services_offered: JSON.stringify(selectedServices.value),
+      end_lat: currentLocation.latitude,   // ✅ 6 decimal places precision
+      end_lng: currentLocation.longitude,  // ✅ 6 decimal places precision
+      services_offered: selectedServices.value,
       notes: visitNotes.value || ''
     }
 
-    // Add base64 signatures if they exist
-    if (clientSignature.value) {
-      // Extract base64 data from data URL
-      const base64Data = clientSignature.value.split(',')[1]
-      visitData.client_signature = base64Data
-    }
+    console.log('Check-out payload with coordinates:', visitData);
+    console.log('Coordinate precision verification:', {
+      end_lat: visitData.end_lat.toString(),
+      end_lng: visitData.end_lng.toString(),
+      decimal_places_lat: visitData.end_lat.toString().split('.')[1]?.length || 0,
+      decimal_places_lng: visitData.end_lng.toString().split('.')[1]?.length || 0
+    });
 
+    if (clientSignature.value) {
+      visitData.client_signature = clientSignature.value.split(',')[1]
+    }
     if (caregiverSignature.value) {
-      // Extract base64 data from data URL
-      const base64Data = caregiverSignature.value.split(',')[1]
-      visitData.caregiver_signature = base64Data
+      visitData.caregiver_signature = caregiverSignature.value.split(',')[1]
     }
 
     const response = await axiosInstance.patch(`/api/evv/visits/${currentVisit.value.id}/checkout/`, visitData)
@@ -294,16 +398,42 @@ const confirmCheckOut = async () => {
     clientSignature.value = null
     caregiverSignature.value = null
     visitNotes.value = ''
+    clearCheckInStatus()
+
     currentView.value = 'dashboard'
     showNotification('Successfully checked out and visit recorded')
+    fetchDashboardData()
   } catch (err) {
     console.error('Error checking out:', err)
-    if (err.response?.data) {
-      console.error('Server response:', err.response.data)
-      showNotification(`Failed to check out: ${JSON.stringify(err.response.data)}`, 'error')
-    } else {
-      showNotification('Failed to check out', 'error')
-    }
+    showNotification('Failed to check out', 'error')
+  }
+}
+
+// Force check-out (emergency function)
+const forceCheckOut = async () => {
+  if (!confirm('Are you sure you want to force check out? This should only be used if normal check out is not working.')) {
+    return
+  }
+
+  try {
+    await axiosInstance.patch(`/api/evv/visits/${currentVisit.value.id}/checkout/`, {
+      check_out: new Date().toISOString(),
+      force: true
+    })
+
+    // Reset check-in state
+    currentVisit.value = null
+    isCheckedIn.value = false
+    selectedClient.value = null
+
+    // Clear check-in status from localStorage
+    clearCheckInStatus()
+
+    showNotification('Force check out completed', 'warning')
+    fetchDashboardData()
+  } catch (err) {
+    console.error('Error during force check out:', err)
+    showNotification('Failed to force check out', 'error')
   }
 }
 
@@ -410,9 +540,25 @@ const openSignatureModal = (type) => {
   })
 }
 
+// Auto-refresh data every 30 seconds
+const startAutoRefresh = () => {
+  setInterval(() => {
+    if (currentView.value === 'dashboard') {
+      fetchDashboardData()
+    }
+  }, 300000)
+}
+
 // Initialize
 onMounted(() => {
+  // Load any existing check-in status from localStorage
+  loadCheckInStatus()
+
+  // Fetch initial data
   fetchDashboardData()
+
+  // Start auto-refresh
+  startAutoRefresh()
 })
 </script>
 
@@ -497,16 +643,21 @@ onMounted(() => {
                     <span v-if="isCheckedIn" class="text-green-600 font-semibold">Checked In</span>
                     <span v-else class="text-gray-500">Available</span>
                   </p>
+                  <p v-if="isCheckedIn" class="text-xs text-gray-500 mt-1">
+                    Duration: {{ currentVisitDuration }} • Auto-saved
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <!-- Stats Cards -->
-          <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <!-- Stats Section -->
+          <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Clients -->
+            <div
+              class="col-span-1 sm:col-span-1 lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
               <div class="flex items-center">
-                <div class="bg-sky-blue/10 p-1 rounded-lg">
+                <div class="bg-sky-blue/10 p-1 rounded-xl">
                   <svg class="w-6 h-6 text-sky-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
@@ -514,29 +665,16 @@ onMounted(() => {
                 </div>
                 <div class="ml-4">
                   <p class="text-sm font-medium text-gray-600">Total Clients</p>
-                  <p class="text-2xl font-bold text-gray-900">{{ stats.totalClients || 0 }}</p>
+                  <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.totalClients || 0 }}</p>
                 </div>
               </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <!-- Pending Visits (span full width only on small screens) -->
+            <div
+              class="col-span-1 sm:col-span-1 lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
               <div class="flex items-center">
-                <div class="bg-green-100 p-1 rounded-lg">
-                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm font-medium text-gray-600">Completed Visits</p>
-                  <p class="text-2xl font-bold text-gray-900">{{ stats.completedVisits || 0 }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div class="flex items-center">
-                <div class="bg-orange/10 p-1 rounded-lg">
+                <div class="bg-orange/10 p-1 rounded-xl">
                   <svg class="w-6 h-6 text-orange" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -544,14 +682,33 @@ onMounted(() => {
                 </div>
                 <div class="ml-4">
                   <p class="text-sm font-medium text-gray-600">Pending Visits</p>
-                  <p class="text-2xl font-bold text-gray-900">{{ stats.pendingVisits || 0 }}</p>
+                  <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.pendingVisits || 0 }}</p>
                 </div>
               </div>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <!-- Completed Visits -->
+            <div
+              class="col-span-2 sm:col-span-2 lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
               <div class="flex items-center">
-                <div class="bg-purple-100 p-1 rounded-lg">
+                <div class="bg-green-100 p-3 rounded-xl">
+                  <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div class="ml-4">
+                  <p class="text-sm font-medium text-gray-600">Completed Visits</p>
+                  <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.completedVisits || 0 }}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Hours -->
+            <div
+              class="col-span-2 sm:col-span-2 lg:col-span-1 bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div class="flex items-center">
+                <div class="bg-purple-100 p-3 rounded-xl">
                   <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -559,24 +716,54 @@ onMounted(() => {
                 </div>
                 <div class="ml-4">
                   <p class="text-sm font-medium text-gray-600">Total Hours</p>
-                  <p class="text-2xl font-bold text-gray-900">{{ (stats.totalHours || 0).toFixed(1) }}h</p>
+                  <p class="text-2xl font-bold text-gray-900">{{ (enhancedStats.totalHours || 0).toFixed(1) }}h</p>
+                  <p class="text-xs text-gray-500 mt-1">
+                    Avg: {{ enhancedStats.avgHoursPerVisit }}h/visit
+                  </p>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Current Status Card -->
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-            <div class="flex items-center justify-between">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-8">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between sm:space-y-0 space-y-4">
+              <!-- Left Section -->
               <div>
                 <h2 class="text-lg font-semibold text-gray-800">Current Visit</h2>
-                <p v-if="isCheckedIn" class="text-green-600 font-medium mt-1 flex items-center">
-                  <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Checked in with {{ selectedClient?.first_name }} {{ selectedClient?.last_name }}
-                </p>
-                <p v-else class="text-gray-600 mt-1 flex items-center">
+
+                <!-- Checked In -->
+                <div v-if="isCheckedIn" class="mt-2 space-y-2">
+                  <p class="text-green-600 font-medium flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Checked in with {{ selectedClient?.first_name }} {{ selectedClient?.last_name }}
+                  </p>
+
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-3 text-sm text-gray-600">
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>Duration: {{ currentVisitDuration }}</span>
+                    </div>
+
+                    <div class="hidden sm:inline">•</div>
+
+                    <div class="flex items-center">
+                      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span>Started: {{ new Date(currentVisit?.check_in_time).toLocaleTimeString() }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Not Checked In -->
+                <p v-else class="text-gray-600 mt-2 flex items-center">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -584,14 +771,26 @@ onMounted(() => {
                   Ready for next visit
                 </p>
               </div>
-              <div v-if="isCheckedIn" class="flex space-x-3">
+
+              <!-- Right Section (Buttons) -->
+              <div v-if="isCheckedIn" class="flex flex-col sm:flex-row sm:space-x-3 space-y-2 sm:space-y-0">
                 <button @click="initiateCheckOut"
-                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center">
+                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center shadow-sm">
                   <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a2 2 0 00-2-2h4a2 2 0 013 3v1" />
                   </svg>
                   Check Out
+                </button>
+
+                <button @click="forceCheckOut"
+                  class="px-3 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors flex items-center justify-center shadow-sm text-sm"
+                  title="Force check out (emergency)">
+                  <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Force
                 </button>
               </div>
             </div>
@@ -601,7 +800,17 @@ onMounted(() => {
           <div class="mb-8">
             <div class="flex items-center justify-between mb-6">
               <h2 class="text-xl font-semibold text-gray-900">My Clients</h2>
-              <span class="text-sm text-gray-500">{{ assignedClients.length }} clients</span>
+              <div class="flex items-center space-x-4">
+                <span class="text-sm text-gray-500">{{ assignedClients.length }} clients</span>
+                <button @click="fetchDashboardData"
+                  class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
+                  title="Refresh data">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <!-- Clients Grid -->
@@ -644,7 +853,7 @@ onMounted(() => {
 
                   <div class="mt-6">
                     <button @click="initiateCheckIn(client)" :disabled="isCheckedIn || locationLoading"
-                      class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                      class="w-full flex items-center justify-center px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
                       <svg v-if="locationLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none"
                         viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
@@ -656,7 +865,7 @@ onMounted(() => {
                       <svg v-else class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                       </svg>
-                      {{ locationLoading ? 'Verifying...' : 'Check In' }}
+                      {{ locationLoading ? 'Verifying...' : (isCheckedIn ? 'Already Checked In' : 'Check In') }}
                     </button>
                   </div>
                 </div>
@@ -683,7 +892,8 @@ onMounted(() => {
                 <h1 class="text-2xl font-bold text-gray-900">Check In</h1>
                 <p class="text-gray-600 mt-1">Complete check-in process for client</p>
               </div>
-              <button @click="goBack" class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+              <button @click="goBack"
+                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -692,7 +902,7 @@ onMounted(() => {
 
             <div v-if="selectedClient" class="space-y-6">
               <!-- Client Information -->
-              <div class="bg-blue-50 rounded-lg p-4">
+              <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
                 <h3 class="text-lg font-semibold text-blue-900 mb-2">Client Information</h3>
                 <p class="text-blue-700"><strong>Name:</strong> {{ selectedClient.first_name }} {{
                   selectedClient.last_name }}</p>
@@ -701,34 +911,18 @@ onMounted(() => {
               </div>
 
               <!-- Location Verification -->
-              <div class="bg-blue-50 rounded-lg p-4">
+              <div class="rounded-lg p-4 border"
+                :class="locationStatus.verified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'">
                 <div class="flex items-center">
-                  <svg class="h-5 w-5 text-blue-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="h-5 w-5 mr-2" :class="locationStatus.verified ? 'text-green-500' : 'text-red-500'"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                   <span class="text-sm font-medium"
-                    :class="locationStatus.verified ? 'text-green-600' : 'text-red-600'">
+                    :class="locationStatus.verified ? 'text-green-700' : 'text-red-700'">
                     {{ locationStatus.message }}
                   </span>
-                </div>
-              </div>
-
-              <!-- Service Selection -->
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-3">Select Services</label>
-                <div class="space-y-3">
-                  <div v-for="service in selectedClient.services_needed" :key="service.id"
-                    class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
-                    :class="selectedServices.includes(service.id) ? 'border-green-500 bg-green-50' : 'border-gray-200'"
-                    @click="toggleService(service.id)">
-                    <input :id="`service-${service.id}`" type="checkbox" :value="service.id" v-model="selectedServices"
-                      class="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500">
-                    <label :for="`service-${service.id}`" class="ml-3 text-sm text-gray-700 flex-1 cursor-pointer">
-                      <span class="font-medium">{{ service.name }}</span>
-                      <p class="text-xs text-gray-500 mt-1">{{ service.description }}</p>
-                    </label>
-                  </div>
                 </div>
               </div>
 
@@ -739,7 +933,7 @@ onMounted(() => {
                   Cancel
                 </button>
                 <button @click="confirmCheckIn" type="button" :disabled="!locationStatus.verified || locationLoading"
-                  class="px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  class="px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
                   Confirm Check In
                 </button>
               </div>
@@ -749,13 +943,14 @@ onMounted(() => {
 
         <!-- Check Out Page -->
         <div v-else-if="currentView === 'checkout'" class="max-w-4xl mx-auto">
-          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3">
             <div class="flex items-center justify-between mb-6">
               <div>
                 <h1 class="text-2xl font-bold text-gray-900">Check Out</h1>
                 <p class="text-gray-600 mt-1">Complete check-out process and record visit details</p>
               </div>
-              <button @click="goBack" class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+              <button @click="goBack"
+                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -764,14 +959,16 @@ onMounted(() => {
 
             <div class="space-y-6">
               <!-- Location Verification -->
-              <div class="bg-blue-50 rounded-lg p-4">
+              <div class="rounded-lg p-4 border"
+                :class="locationStatus.verified ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'">
                 <div class="flex items-center">
-                  <svg class="h-5 w-5 text-blue-400 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg class="h-5 w-5 mr-2" :class="locationStatus.verified ? 'text-green-500' : 'text-red-500'"
+                    fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                       d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                   </svg>
                   <span class="text-sm font-medium"
-                    :class="locationStatus.verified ? 'text-green-600' : 'text-red-600'">
+                    :class="locationStatus.verified ? 'text-green-700' : 'text-red-700'">
                     {{ locationStatus.message }}
                   </span>
                 </div>
@@ -800,7 +997,8 @@ onMounted(() => {
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-3">Signatures</label>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <div
+                    class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
                     <p class="text-sm font-medium text-gray-700 mb-2">Client Signature</p>
                     <div v-if="clientSignature" class="h-32 bg-gray-100 rounded flex items-center justify-center mb-3">
                       <img :src="clientSignature" alt="Client Signature" class="max-h-full max-w-full object-contain">
@@ -818,7 +1016,8 @@ onMounted(() => {
                     </button>
                   </div>
 
-                  <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <div
+                    class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 transition-colors">
                     <p class="text-sm font-medium text-gray-700 mb-2">Caregiver Signature</p>
                     <div v-if="caregiverSignature"
                       class="h-32 bg-gray-100 rounded flex items-center justify-center mb-3">
@@ -844,7 +1043,7 @@ onMounted(() => {
               <div>
                 <label for="visit-notes" class="block text-sm font-medium text-gray-700 mb-2">Visit Notes</label>
                 <textarea id="visit-notes" v-model="visitNotes" rows="4"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   placeholder="Add any notes about the visit..."></textarea>
               </div>
 
@@ -855,7 +1054,7 @@ onMounted(() => {
                   Cancel
                 </button>
                 <button @click="confirmCheckOut" type="button" :disabled="!locationStatus.verified || locationLoading"
-                  class="px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+                  class="px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm">
                   Complete Check Out
                 </button>
               </div>
@@ -870,7 +1069,8 @@ onMounted(() => {
               <h1 class="text-2xl font-bold text-gray-900">
                 {{ signatureType === 'client' ? 'Client' : 'Caregiver' }} Signature
               </h1>
-              <button @click="goBack" class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
+              <button @click="goBack"
+                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -894,7 +1094,7 @@ onMounted(() => {
                   Cancel
                 </button>
                 <button @click="captureSignature" type="button"
-                  class="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors">
+                  class="px-4 py-2 border border-transparent rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm">
                   Save Signature
                 </button>
               </div>
@@ -932,5 +1132,19 @@ onMounted(() => {
 
 .text-orange {
   color: #ff7f50;
+}
+
+/* Smooth transitions for all interactive elements */
+button,
+input,
+textarea,
+select {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Enhanced hover effects */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 </style>

@@ -5,7 +5,7 @@
       <div class="flex flex-col md:flex-row justify-between items-center">
         <div class="text-center md:text-left mb-4 md:mb-0">
           <p class="text-white text-sm">
-            &copy; {{ new Date().getFullYear() }} DivineAngelCare. All rights reserved.
+            &copy; {{ new Date().getFullYear() }} Brightpath EVV. All rights reserved.
           </p>
         </div>
         <div class="flex space-x-6">
