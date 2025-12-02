@@ -1,9 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import axiosInstance from '@/axiosconfig/axiosInstance'
-import TheNavbar from '@/components/TheNavbar.vue'
-import TheFooter from '@/components/TheFooter.vue'
-import TheSidebar from '@/components/TheSidebar.vue'
 import { Dialog, DialogPanel, DialogTitle, TransitionChild, TransitionRoot } from '@headlessui/vue'
 import { CheckCircleIcon, ExclamationCircleIcon, PencilIcon, PlusIcon } from '@heroicons/vue/24/outline'
 
@@ -29,13 +26,6 @@ const success = ref(null)
 
 // Dialog states
 const showSuccessDialog = ref(false)
-
-// Navigation handler
-const handleNavigation = (route) => {
-  // Handle navigation if needed
-  console.log('Navigating to:', route)
-}
-
 // Toggle sidebar
 const toggleSidebar = () => {
   sidebarOpen.value = !sidebarOpen.value
@@ -167,12 +157,9 @@ onMounted(() => {
 
 <template>
   <div class="min-h-screen bg-gray-50 flex">
-    <TheNavbar />
-
-    <TheSidebar :sidebarOpen="sidebarOpen" @toggleSidebar="toggleSidebar" @navigate="handleNavigation" />
 
     <!-- Main Content -->
-    <div class="flex-1 flex flex-col mt-17 lg:ml-4">
+    <div class="flex-1 flex flex-col mt-2 lg:ml-4">
       <!-- Mobile sidebar toggle -->
       <div class="lg:hidden bg-white border-b border-gray-200 px-4 py-3">
         <button @click="toggleSidebar" class="p-2 rounded-md text-gray-500 hover:text-gray-700">
@@ -365,8 +352,6 @@ onMounted(() => {
       </div>
     </Dialog>
   </TransitionRoot>
-
-  <TheFooter />
 </template>
 
 <style scoped>

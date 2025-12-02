@@ -1,8 +1,5 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import TheNavbar from '@/components/TheNavbar.vue'
-import TheFooter from '@/components/TheFooter.vue'
-import TheSidebar from '@/components/TheSidebar.vue'
 import axiosInstance from '@/axiosconfig/axiosInstance'
 
 // Component state
@@ -21,16 +18,6 @@ const isSubmitting = ref(false)
 const showSuccess = ref(false)
 const showError = ref(false)
 
-// Sidebar management
-const toggleSidebar = () => {
-  sidebarOpen.value = !sidebarOpen.value
-}
-
-const handleNavigation = (route) => {
-  // Handle navigation logic here
-  console.log('Navigating to:', route)
-  sidebarOpen.value = false // Close sidebar after navigation
-}
 
 // Data fetching
 const fetchSettings = async () => {
@@ -74,17 +61,13 @@ onMounted(fetchSettings)
 
 <template>
   <div class="flex flex-1 min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-    <!-- Navbar -->
-    <TheNavbar @toggleSidebar="toggleSidebar" />
-    <!-- Sidebar -->
-    <TheSidebar :sidebarOpen="sidebarOpen" @toggleSidebar="toggleSidebar" @navigate="handleNavigation" />
 
     <!-- Main Content with Sidebar -->
     <div class="flex flex-1">
 
       <!-- Main Content Area -->
-      <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-4' : 'lg:ml-0'">
-        <div class="py-22 px-4 sm:px-6 lg:px-8">
+      <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-2' : 'lg:ml-0'">
+        <div class="py-10 px-4 sm:px-6 lg:px-6">
           <div class="max-w-3xl mx-auto">
             <!-- Success Alert -->
             <transition enter-active-class="transition ease-out duration-300"
@@ -293,6 +276,4 @@ onMounted(fetchSettings)
       </main>
     </div>
   </div>
-  <!-- Footer -->
-  <TheFooter />
 </template>

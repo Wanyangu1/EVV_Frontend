@@ -1,562 +1,623 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import axiosInstance from '@/axiosconfig/axiosInstance'
+import { ref, onMounted } from 'vue';
+import axiosInstance from '@/axiosconfig/axiosInstance';
 
-const visits = ref([])
-const clients = ref([])
-const loading = ref(false)
-const activeTab = ref('overview')
+const uploading = ref(false);
+const checkingStatus = ref(false);
+const showScheduleForm = ref(false);
+const uploadResult = ref(null);
+const statusResult = ref(null);
+const manualTransactionId = ref('');
+const lastTransactionId = ref('');
+const clients = ref([]);
+const employees = ref([]);
+const schedules = ref([]);
+const loadingClients = ref(false);
+const loadingEmployees = ref(false);
+const loadingSchedules = ref(false);
 
-// Fetch both visits and clients data
-const fetchData = async () => {
+// Fetch clients from API
+const fetchClients = async () => {
+  loadingClients.value = true;
   try {
-    loading.value = true
-    const [visitsResponse, clientsResponse] = await Promise.all([
-      axiosInstance.get('/api/evv/visits/'),
-      axiosInstance.get('/api/evv/clients/')
-    ])
-
-    visits.value = visitsResponse.data
-    clients.value = clientsResponse.data
-  } catch (err) {
-    console.error('Error fetching data:', err)
+    const response = await axiosInstance.get('/api/evv/clients/');
+    clients.value = response.data;
+  } catch (error) {
+    console.error('Error fetching clients:', error);
+    alert('Failed to fetch clients');
   } finally {
-    loading.value = false
+    loadingClients.value = false;
   }
-}
+};
 
-// Create a clients map for easy lookup
-const clientsMap = computed(() => {
-  const map = {}
-  clients.value.forEach(client => {
-    map[client.id] = client
-  })
-  return map
-})
-
-// Get client details by ID
-const getClientDetails = (clientId) => {
-  return clientsMap.value[clientId] || null
-}
-
-// Get client name with fallback
-const getClientName = (clientId) => {
-  const client = getClientDetails(clientId)
-  if (client) {
-    return `${client.first_name} ${client.last_name}`
+// Fetch employees from API
+const fetchEmployees = async () => {
+  loadingEmployees.value = true;
+  try {
+    const response = await axiosInstance.get('/api/evv/employees/');
+    employees.value = response.data;
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    alert('Failed to fetch employees');
+  } finally {
+    loadingEmployees.value = false;
   }
-  return `Client ${clientId}`
-}
+};
 
-// Get client services
-const getClientServices = (clientId) => {
-  const client = getClientDetails(clientId)
-  return client?.services_needed || []
-}
-
-// Get completed services for a visit
-const getCompletedServices = (visit) => {
-  if (!visit.services || visit.services.length === 0) return []
-
-  const clientServices = getClientServices(visit.client)
-  return clientServices.filter(service =>
-    visit.services.includes(service.id)
-  )
-}
-
-// Computed properties for statistics
-const stats = computed(() => {
-  const completedVisits = visits.value.filter(v => v.status === 'completed').length
-  const inProgressVisits = visits.value.filter(v => v.status === 'checked_in').length
-  const totalHours = visits.value
-    .filter(v => v.hours_worked)
-    .reduce((sum, v) => sum + parseFloat(v.hours_worked), 0)
-
-  // Calculate unique clients served
-  const uniqueClients = new Set(visits.value.map(v => v.client)).size
-
-  return {
-    total: visits.value.length,
-    completed: completedVisits,
-    inProgress: inProgressVisits,
-    totalHours: totalHours.toFixed(1),
-    uniqueClients: uniqueClients
+// Fetch existing schedules
+const fetchSchedules = async () => {
+  loadingSchedules.value = true;
+  try {
+    const response = await axiosInstance.get('/api/evv/visits/?schedule_only=true');
+    schedules.value = response.data.filter(v => !v.calls || v.calls.length === 0);
+  } catch (error) {
+    console.error('Error fetching schedules:', error);
+  } finally {
+    loadingSchedules.value = false;
   }
-})
+};
 
-// Enhanced stats with client-specific data
-const enhancedStats = computed(() => {
-  const today = new Date()
-  const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+// Schedule form - WITHOUT calls
+const newSchedule = ref({
+  clientId: '', // Selected from dropdown (Client ID - not Medicaid ID)
+  employeeId: '', // Selected from dropdown (Employee ID - not SSN)
+  scheduleDate: '',
+  startTime: '09:00',
+  endTime: '10:00',
+  procedureCode: 'T1019',
+  payerId: 'AZDDD',
+  visitTimeZone: 'US/Arizona',
+  billVisit: true,
+  contingencyPlan: 'CP01'
+});
 
-  const recentVisits = visits.value.filter(v =>
-    new Date(v.created_at) >= oneWeekAgo
-  )
+// Approved values from EVV documentation
+const approvedPayerIds = [
+  'AZACH', 'AZBUFC', 'AZCCCS', 'AZCDMP', 'AZDDD',
+  'AZMCC', 'AZMYC', 'AZSHP', 'AZSHC', 'AZUCP'
+];
 
-  const recentCompleted = recentVisits.filter(v => v.status === 'completed').length
-  const recentHours = recentVisits
-    .filter(v => v.hours_worked)
-    .reduce((sum, v) => sum + parseFloat(v.hours_worked), 0)
+const approvedProcedureCodes = [
+  'G0151', 'G0152', 'G0153', 'G0299', 'G0300',
+  'S5125', 'S5130', 'S5135', 'S5136', 'S5150',
+  'S5151', 'S5181', 'S9123', 'S9124', 'S9128',
+  'S9129', 'S9131', 'T1019', 'T1021', 'T2017'
+];
 
-  return {
-    ...stats.value,
-    recentCompleted,
-    recentHours: recentHours.toFixed(1),
-    completionRate: stats.value.total > 0 ? (stats.value.completed / stats.value.total) * 100 : 0
+const approvedTimeZones = [
+  'US/Alaska', 'US/Aleutian', 'US/Arizona', 'US/Central',
+  'US/East-Indiana', 'US/Eastern', 'US/Hawaii', 'US/Indiana-Starke',
+  'US/Michigan', 'US/Mountain', 'US/Pacific', 'US/Samoa',
+  'America/Indiana/Indianapolis', 'America/Puerto_Rico'
+];
+
+const contingencyPlans = [
+  { code: 'CP01', label: 'Reschedule within 2 Hours' },
+  { code: 'CP02', label: 'Reschedule within 24 Hours' },
+  { code: 'CP03', label: 'Reschedule within 48 Hours' },
+  { code: 'CP04', label: 'Next Scheduled Visit' },
+  { code: 'CP05', label: 'Non-Paid Caregiver' }
+];
+
+// Helper function to format date to UTC ISO string
+const formatToUTC = (dateString, timeString) => {
+  const dateTime = new Date(`${dateString}T${timeString}`);
+  return dateTime.toISOString().replace(/\.\d{3}Z$/, 'Z');
+};
+
+// Generate SequenceID as timestamp (YYYYMMDDHHMMSS)
+const generateSequenceID = () => {
+  const now = new Date();
+  return now.getFullYear().toString() +
+    String(now.getMonth() + 1).padStart(2, '0') +
+    String(now.getDate()).padStart(2, '0') +
+    String(now.getHours()).padStart(2, '0') +
+    String(now.getMinutes()).padStart(2, '0') +
+    String(now.getSeconds()).padStart(2, '0');
+};
+
+// Generate unique VisitOtherID
+const generateVisitOtherID = () => {
+  const timestamp = Date.now();
+  return `SCH${timestamp.toString().slice(-9)}`;
+};
+
+// Create a new schedule (without calls)
+const createSchedule = async () => {
+  // Validate required fields
+  if (!newSchedule.value.clientId || !newSchedule.value.employeeId ||
+    !newSchedule.value.scheduleDate || !newSchedule.value.procedureCode) {
+    alert('Please fill all required fields: Client, Employee, Date, and Procedure Code');
+    return;
   }
-})
 
-// Format date and time
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+  // Validate date is in future
+  const scheduleDate = new Date(newSchedule.value.scheduleDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-const formatTime = (dateString) => {
-  if (!dateString) return 'N/A'
-  return new Date(dateString).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true
-  })
-}
-
-
-// Format duration
-const formatDuration = (hours) => {
-  if (!hours) return 'N/A'
-  const totalMinutes = parseFloat(hours) * 60
-  const hoursPart = Math.floor(totalMinutes / 60)
-  const minutesPart = Math.round(totalMinutes % 60)
-
-  if (hoursPart > 0) {
-    return `${hoursPart}h ${minutesPart}m`
+  if (scheduleDate <= today) {
+    alert('Schedule date must be in the future');
+    return;
   }
-  return `${minutesPart}m`
-}
 
-// Get status display info
-const getStatusInfo = (visit) => {
-  if (visit.status === 'completed') {
-    return {
-      class: 'bg-green-100 text-green-800 border border-green-200',
-      text: 'Completed',
-      icon: '✓'
+  // Validate times
+  const startTime = new Date(`${newSchedule.value.scheduleDate}T${newSchedule.value.startTime}`);
+  const endTime = new Date(`${newSchedule.value.scheduleDate}T${newSchedule.value.endTime}`);
+
+  if (endTime <= startTime) {
+    alert('End time must be after start time');
+    return;
+  }
+
+  uploading.value = true;
+
+  try {
+    // FIXED: Send client ID and employee ID (integers), not Medicaid ID/SSN
+    const scheduleData = {
+      client: parseInt(newSchedule.value.clientId), // Convert to integer
+      employee: parseInt(newSchedule.value.employeeId), // Convert to integer
+      visit_type: 'scheduled', // Use 'scheduled' instead of 'visit_status'
+      schedule_start_time: formatToUTC(newSchedule.value.scheduleDate, newSchedule.value.startTime),
+      schedule_end_time: formatToUTC(newSchedule.value.scheduleDate, newSchedule.value.endTime),
+      procedure_code: newSchedule.value.procedureCode,
+      payer_id: newSchedule.value.payerId,
+      visit_time_zone: newSchedule.value.visitTimeZone,
+      bill_visit: newSchedule.value.billVisit,
+      contingency_plan: newSchedule.value.contingencyPlan
+      // REMOVED: visit_other_id and sequence_id - let backend generate them
+    };
+
+    console.log('Sending schedule data:', scheduleData);
+
+    // Save schedule to local database
+    const response = await axiosInstance.post('/api/evv/visits/', scheduleData);
+
+    showScheduleForm.value = false;
+    fetchSchedules();
+    alert('Schedule created successfully!');
+
+    // Reset form
+    newSchedule.value = {
+      clientId: '',
+      employeeId: '',
+      scheduleDate: '',
+      startTime: '09:00',
+      endTime: '10:00',
+      procedureCode: 'T1019',
+      payerId: 'AZDDD',
+      visitTimeZone: 'US/Arizona',
+      billVisit: true,
+      contingencyPlan: 'CP01'
+    };
+
+  } catch (error) {
+    console.error('Error creating schedule:', error);
+    console.error('Error response:', error.response?.data);
+    alert('Failed to create schedule: ' + (error.response?.data?.detail || error.message));
+  } finally {
+    uploading.value = false;
+  }
+};
+
+// Send schedules to EVV (schedule only, no calls)
+const sendSchedulesToEVV = async () => {
+  if (schedules.value.length === 0) {
+    alert('No schedules to send. Create schedules first.');
+    return;
+  }
+
+  uploading.value = true;
+  uploadResult.value = null;
+
+  try {
+    const response = await axiosInstance.post('/api/evv/evv/visits/send/', {
+      send_type: 'schedules_only'
+    });
+
+    uploadResult.value = response.data;
+
+    // Store the transaction ID for automatic status checking
+    if (response.data.evv_response?.response?.id) {
+      lastTransactionId.value = response.data.evv_response.response.id;
+      // Auto-check status after 5 seconds
+      setTimeout(() => {
+        checkVisitStatus(lastTransactionId.value);
+      }, 5000);
     }
-  } else if (visit.status === 'checked_in') {
-    return {
-      class: 'bg-blue-100 text-blue-800 border border-blue-200',
-      text: 'In Progress',
-      icon: '⏱️'
-    }
-  } else {
-    return {
-      class: 'bg-gray-100 text-gray-800 border border-gray-200',
-      text: 'Scheduled',
-      icon: '📅'
-    }
+
+  } catch (error) {
+    console.error('Error sending schedules to EVV:', error);
+    uploadResult.value = {
+      status_code: 500,
+      response: {
+        error: 'Failed to send schedules',
+        details: error.response?.data || error.message
+      }
+    };
+  } finally {
+    uploading.value = false;
   }
-}
+};
 
-// Get visit location info
-const getLocationInfo = (visit) => {
-  if (visit.check_in_lat && visit.check_in_lng) {
-    return {
-      hasLocation: true,
-      lat: visit.check_in_lat,
-      lng: visit.check_in_lng
+// Send completed visits (with calls) to EVV
+const sendCompletedVisitsToEVV = async () => {
+  uploading.value = true;
+  uploadResult.value = null;
+
+  try {
+    const response = await axiosInstance.post('/api/evv/evv/visits/send/', {
+      send_type: 'completed_visits'
+    });
+
+    uploadResult.value = response.data;
+
+    if (response.data.evv_response?.response?.id) {
+      lastTransactionId.value = response.data.evv_response.response.id;
+      setTimeout(() => {
+        checkVisitStatus(lastTransactionId.value);
+      }, 5000);
     }
+
+  } catch (error) {
+    console.error('Error sending completed visits to EVV:', error);
+    uploadResult.value = {
+      status_code: 500,
+      response: {
+        error: 'Failed to send completed visits',
+        details: error.response?.data || error.message
+      }
+    };
+  } finally {
+    uploading.value = false;
   }
-  return { hasLocation: false }
-}
+};
 
-// Sort visits by date (newest first)
-const sortedVisits = computed(() => {
-  return [...visits.value].sort((a, b) =>
-    new Date(b.created_at) - new Date(a.created_at)
-  )
-})
+const checkVisitStatus = async (transactionId) => {
+  if (!transactionId) return;
 
-// Filter visits by status
-const filteredVisits = computed(() => {
-  return sortedVisits.value
-})
+  checkingStatus.value = true;
+  try {
+    const response = await axiosInstance.get(`/api/evv/evv/check-upload-status/${transactionId}/`);
+    statusResult.value = response.data.status_check_result;
+
+    // If still processing, check again in 10 seconds
+    if (statusResult.value.response?.message?.includes('not ready yet')) {
+      setTimeout(() => {
+        checkVisitStatus(transactionId);
+      }, 10000);
+    }
+  } catch (error) {
+    console.error('Error checking status:', error);
+    statusResult.value = {
+      error: 'Failed to check status',
+      details: error.response?.data || error.message
+    };
+  } finally {
+    checkingStatus.value = false;
+  }
+};
+
+const checkManualStatus = async () => {
+  if (!manualTransactionId.value.trim()) {
+    alert('Please enter a transaction ID');
+    return;
+  }
+  await checkVisitStatus(manualTransactionId.value);
+};
+
+const getStatusClass = (statusCode) => {
+  if (statusCode >= 200 && statusCode < 300) return 'border-l-green-500 bg-green-50';
+  if (statusCode >= 400 && statusCode < 500) return 'border-l-yellow-500 bg-yellow-50';
+  return 'border-l-red-500 bg-red-50';
+};
+
+const getTransactionId = (response) => {
+  if (response.evv_response && response.evv_response.response) {
+    return response.evv_response.response.transaction_id ||
+      response.evv_response.response.upload_id ||
+      response.evv_response.response.id;
+  }
+  return response.transaction_id || response.upload_id || response.id;
+};
+
+const getUploadStatusMessage = (result) => {
+  if (!result) return '';
+
+  const response = result.evv_response?.response || result.response;
+  if (!response) return '';
+
+  if (response.status === 'SUCCESS') {
+    return '✅ Upload successful! Processing completed.';
+  } else if (response.status === 'FAILED') {
+    return '❌ Upload failed. Please check the errors below.';
+  } else if (response.message?.includes('not ready yet')) {
+    return '⏳ Data is being processed. Please check status again in a few moments.';
+  } else if (response.reason === 'Transaction Received.') {
+    return '✅ Data accepted! Transaction received and being processed.';
+  }
+
+  return response.message || response.reason || '';
+};
+
+// Format client display for dropdown - SHOW BOTH ID AND MEDICAID ID
+const formatClientDisplay = (client) => {
+  return `[ID: ${client.id}] ${client.medicaid_id} - ${client.first_name} ${client.last_name}`;
+};
+
+// Format employee display for dropdown - SHOW BOTH ID AND SSN
+const formatEmployeeDisplay = (employee) => {
+  return `[ID: ${employee.id}] ${employee.ssn} - ${employee.first_name} ${employee.last_name}`;
+};
+
+// Find client by Medicaid ID (for backward compatibility if needed)
+const findClientByMedicaidId = (medicaidId) => {
+  return clients.value.find(client => client.medicaid_id === medicaidId);
+};
+
+// Find employee by SSN (for backward compatibility if needed)
+const findEmployeeBySSN = (ssn) => {
+  return employees.value.find(employee => employee.ssn === ssn);
+};
 
 onMounted(() => {
-  fetchData()
-})
+  fetchClients();
+  fetchEmployees();
+  fetchSchedules();
+});
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 md:p-6">
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Service Delivery Dashboard</h1>
-      <p class="text-gray-600 mt-1">Track your caregiving progress and visit history</p>
-    </div>
-
-    <!-- Stats Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-        <div class="flex items-center">
-          <div class="p-3 rounded-lg bg-blue-50 text-blue-600 mr-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-600">Total Visits</p>
-            <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.total }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ enhancedStats.uniqueClients }} unique clients</p>
-          </div>
-        </div>
+  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+      <!-- Page Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">EVV Schedule Management</h1>
+        <p class="text-lg text-gray-600">Create schedules and manage EVV data</p>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-        <div class="flex items-center">
-          <div class="p-3 rounded-lg bg-green-50 text-green-600 mr-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-600">Completed</p>
-            <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.completed }}</p>
-            <p class="text-xs text-gray-500 mt-1">{{ enhancedStats.recentCompleted }} this week</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-        <div class="flex items-center">
-          <div class="p-3 rounded-lg bg-yellow-50 text-yellow-600 mr-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-600">In Progress</p>
-            <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.inProgress }}</p>
-            <p class="text-xs text-gray-500 mt-1">Active visits</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow">
-        <div class="flex items-center">
-          <div class="p-3 rounded-lg bg-purple-50 text-purple-600 mr-4">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p class="text-sm font-medium text-gray-600">Hours Worked</p>
-            <p class="text-2xl font-bold text-gray-900">{{ enhancedStats.totalHours }}h</p>
-            <p class="text-xs text-gray-500 mt-1">{{ enhancedStats.recentHours }}h this week</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Progress Bar -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
-      <div class="flex justify-between items-center mb-2">
-        <h3 class="text-lg font-semibold text-gray-900">Visit Completion Progress</h3>
-        <span class="text-sm font-medium text-gray-700">
-          {{ enhancedStats.completed }} of {{ enhancedStats.total }} visits completed
-        </span>
-      </div>
-      <div class="w-full bg-gray-200 rounded-full h-4">
-        <div class="bg-green-500 h-4 rounded-full transition-all duration-500"
-          :style="{ width: `${Math.min(enhancedStats.completionRate, 100)}%` }"></div>
-      </div>
-      <p class="text-sm text-gray-600 mt-2">
-        {{ Math.round(enhancedStats.completionRate) }}% of all visits completed
-      </p>
-    </div>
-
-    <!-- Tabs -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
-      <div class="border-b border-gray-200">
-        <nav class="flex -mb-px">
-          <button @click="activeTab = 'overview'" :class="activeTab === 'overview'
-            ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors">
-            Visit Overview
-          </button>
-          <button @click="activeTab = 'details'" :class="activeTab === 'details'
-            ? 'border-blue-500 text-blue-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
-            class="whitespace-nowrap py-4 px-6 border-b-2 font-medium text-sm transition-colors">
-            Visit Details
-          </button>
-        </nav>
-      </div>
-
-      <!-- Tab Content -->
-      <div class="p-3">
-        <!-- Overview Tab -->
-        <div v-if="activeTab === 'overview'">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Recent Visits</h2>
-            <div class="flex items-center space-x-4">
-              <span class="text-sm text-gray-500">{{ filteredVisits.length }} total visits</span>
-              <button @click="fetchData"
-                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                :disabled="loading">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  :class="{ 'animate-spin': loading }">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
+      <div class="bg-white shadow rounded-lg overflow-hidden">
+        <div class="p-6">
+          <!-- Create Schedule Section -->
+          <div class="mb-8 pb-6 border-b border-gray-200">
+            <div class="flex justify-between items-center mb-4">
+              <h2 class="text-xl font-semibold text-gray-800">Create New Schedule</h2>
+              <button @click="showScheduleForm = !showScheduleForm"
+                class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                {{ showScheduleForm ? 'Cancel' : 'Create Schedule' }}
               </button>
             </div>
-          </div>
 
-          <!-- Loading State -->
-          <div v-if="loading" class="text-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500 mx-auto mb-4"></div>
-            <p class="text-gray-600">Loading visits...</p>
-          </div>
+            <!-- Schedule Creation Form -->
+            <div v-if="showScheduleForm" class="mt-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+              <h3 class="text-lg font-medium text-gray-900 mb-4">Schedule Details</h3>
 
-          <!-- Visit Cards -->
-          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="visit in filteredVisits" :key="visit.id"
-              class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-all duration-300 hover-lift">
-              <div class="p-5">
-                <div class="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 class="font-semibold text-gray-900 text-lg">{{ getClientName(visit.client) }}</h3>
-                    <p class="text-sm text-gray-500 mt-1">{{ formatDate(visit.created_at) }}</p>
-
-                    <!-- Client Age -->
-                    <div v-if="getClientDetails(visit.client)" class="flex items-center mt-1">
-                      <span class="text-xs text-gray-500">
-                        Age: {{ getClientDetails(visit.client).age }} •
-                        {{ getClientServices(visit.client).length }} services needed
-                      </span>
-                    </div>
-                  </div>
-                  <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                    :class="getStatusInfo(visit).class">
-                    <span class="mr-1">{{ getStatusInfo(visit).icon }}</span>
-                    {{ getStatusInfo(visit).text }}
-                  </span>
+              <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <!-- Client Selection - FIXED: Use client ID -->
+                <div class="sm:col-span-2">
+                  <label for="clientId" class="block text-sm font-medium text-gray-700">Select Client *</label>
+                  <select v-model="newSchedule.clientId" id="clientId"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select a Client</option>
+                    <option v-for="client in clients" :key="client.id" :value="client.id">
+                      {{ formatClientDisplay(client) }}
+                    </option>
+                  </select>
+                  <div v-if="loadingClients" class="mt-1 text-sm text-gray-500">Loading clients...</div>
+                  <p class="mt-1 text-xs text-gray-500">Select by Client ID (not Medicaid ID)</p>
                 </div>
 
-                <div class="space-y-3">
-                  <!-- Check-in Time -->
-                  <div class="flex items-center text-sm text-gray-600">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Check-in: {{ formatTime(visit.check_in_time) }}</span>
-                  </div>
-
-                  <!-- Check-out Time -->
-                  <div class="flex items-center text-sm text-gray-600">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>Check-out: {{ formatTime(visit.check_out_time) }}</span>
-                  </div>
-
-                  <!-- Duration -->
-                  <div v-if="visit.hours_worked" class="flex items-center text-sm text-gray-600">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                    </svg>
-                    <span>Duration: {{ formatDuration(visit.hours_worked) }}</span>
-                  </div>
-
-                  <!-- Services Provided -->
-                  <div v-if="visit.services && visit.services.length > 0" class="text-sm">
-                    <div class="flex items-start">
-                      <svg class="w-4 h-4 mr-2 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor"
-                        viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                      </svg>
-                      <div>
-                        <span class="text-gray-600">Services Provided:</span>
-                        <div class="mt-1 space-y-1">
-                          <div v-for="service in getCompletedServices(visit)" :key="service.id"
-                            class="text-xs bg-green-50 text-green-700 px-2 py-1 rounded">
-                            {{ service.name }}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- Location Info -->
-                  <div v-if="getLocationInfo(visit).hasLocation" class="flex items-center text-sm text-gray-600">
-                    <svg class="w-4 h-4 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <span>Location verified</span>
-                  </div>
+                <!-- Employee Selection - FIXED: Use employee ID -->
+                <div class="sm:col-span-2">
+                  <label for="employeeId" class="block text-sm font-medium text-gray-700">Select Employee *</label>
+                  <select v-model="newSchedule.employeeId" id="employeeId"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Select an Employee</option>
+                    <option v-for="employee in employees" :key="employee.id" :value="employee.id">
+                      {{ formatEmployeeDisplay(employee) }}
+                    </option>
+                  </select>
+                  <div v-if="loadingEmployees" class="mt-1 text-sm text-gray-500">Loading employees...</div>
+                  <p class="mt-1 text-xs text-gray-500">Select by Employee ID (not SSN)</p>
                 </div>
 
-                <!-- Visit Notes -->
-                <div v-if="visit.visit_notes" class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                  <p class="text-sm text-blue-800 font-medium">Visit Notes:</p>
-                  <p class="text-sm text-blue-700 mt-1">{{ visit.visit_notes }}</p>
+                <!-- Schedule Date -->
+                <div>
+                  <label for="scheduleDate" class="block text-sm font-medium text-gray-700">Schedule Date *</label>
+                  <input v-model="newSchedule.scheduleDate" type="date" id="scheduleDate"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                  <p class="mt-1 text-xs text-gray-500">Must be a future date</p>
                 </div>
 
-                <!-- Signatures Status -->
-                <div class="mt-4 flex items-center justify-between text-xs text-gray-500">
-                  <div class="flex items-center space-x-4">
-                    <span v-if="visit.client_signature" class="text-green-600 flex items-center">
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Client signed
-                    </span>
-                    <span v-if="visit.caregiver_signature" class="text-green-600 flex items-center">
-                      <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Caregiver signed
-                    </span>
-                  </div>
-                  <span>ID: {{ visit.id }}</span>
+                <!-- Start Time -->
+                <div>
+                  <label for="startTime" class="block text-sm font-medium text-gray-700">Start Time *</label>
+                  <input v-model="newSchedule.startTime" type="time" id="startTime"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
                 </div>
+
+                <!-- End Time -->
+                <div>
+                  <label for="endTime" class="block text-sm font-medium text-gray-700">End Time *</label>
+                  <input v-model="newSchedule.endTime" type="time" id="endTime"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+
+                <!-- Procedure Code -->
+                <div>
+                  <label for="procedureCode" class="block text-sm font-medium text-gray-700">Procedure Code *</label>
+                  <select v-model="newSchedule.procedureCode" id="procedureCode"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option v-for="code in approvedProcedureCodes" :key="code" :value="code">
+                      {{ code }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Payer ID -->
+                <div>
+                  <label for="payerId" class="block text-sm font-medium text-gray-700">Payer ID *</label>
+                  <select v-model="newSchedule.payerId" id="payerId"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option v-for="payer in approvedPayerIds" :key="payer" :value="payer">
+                      {{ payer }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Time Zone -->
+                <div>
+                  <label for="visitTimeZone" class="block text-sm font-medium text-gray-700">Time Zone *</label>
+                  <select v-model="newSchedule.visitTimeZone" id="visitTimeZone"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option v-for="tz in approvedTimeZones" :key="tz" :value="tz">
+                      {{ tz }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Contingency Plan -->
+                <div>
+                  <label for="contingencyPlan" class="block text-sm font-medium text-gray-700">Contingency Plan</label>
+                  <select v-model="newSchedule.contingencyPlan" id="contingencyPlan"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option v-for="plan in contingencyPlans" :key="plan.code" :value="plan.code">
+                      {{ plan.label }}
+                    </option>
+                  </select>
+                </div>
+
+                <!-- Bill Visit -->
+                <div class="flex items-center">
+                  <input v-model="newSchedule.billVisit" type="checkbox" id="billVisit"
+                    class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500" />
+                  <label for="billVisit" class="ml-2 block text-sm text-gray-700">
+                    Bill this visit
+                  </label>
+                </div>
+              </div>
+
+              <div class="mt-6">
+                <button @click="createSchedule" :disabled="uploading"
+                  class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ uploading ? 'Creating...' : 'Create Schedule' }}
+                </button>
+                <p class="mt-2 text-xs text-gray-500">
+                  💡 <strong>Note:</strong> The backend will automatically generate unique Visit ID and Sequence ID
+                </p>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Details Tab -->
-        <div v-if="activeTab === 'details'">
-          <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-semibold text-gray-900">Visit Details</h2>
-            <div class="flex items-center space-x-4">
-              <span class="text-sm text-gray-500">{{ filteredVisits.length }} total visits</span>
-              <button @click="fetchData"
-                class="p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition-colors"
-                :disabled="loading">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  :class="{ 'animate-spin': loading }">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
+          <!-- Send Data to EVV Section -->
+          <div class="mb-8 pb-6 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Send Data to EVV System</h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <!-- Send Schedules Card -->
+              <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                <div class="flex items-center mb-4">
+                  <div class="bg-blue-100 p-3 rounded-full">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 class="ml-4 text-lg font-medium text-blue-900">Send Schedules</h3>
+                </div>
+                <p class="text-sm text-blue-700 mb-4">Send future visit schedules to AHCCCS EVV system.</p>
+                <div class="bg-white p-3 rounded border border-blue-100 mb-4">
+                  <p class="text-sm font-medium text-gray-700">Ready to send: <span class="text-blue-600">{{
+                    schedules.length }} schedules</span></p>
+                </div>
+                <button @click="sendSchedulesToEVV" :disabled="uploading || schedules.length === 0"
+                  class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ uploading ? 'Sending...' : 'Send Schedules to EVV' }}
+                </button>
+              </div>
+
+              <!-- Send Completed Visits Card -->
+              <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                <div class="flex items-center mb-4">
+                  <div class="bg-green-100 p-3 rounded-full">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 class="ml-4 text-lg font-medium text-green-900">Send Completed Visits</h3>
+                </div>
+                <p class="text-sm text-green-700 mb-4">Send visits with clock in/out times to AHCCCS EVV system.</p>
+                <div class="bg-white p-3 rounded border border-green-100 mb-4">
+                  <p class="text-sm font-medium text-gray-700">Status: <span class="text-green-600">Caregiver app
+                      collects visit data</span></p>
+                </div>
+                <button @click="sendCompletedVisitsToEVV" :disabled="uploading"
+                  class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ uploading ? 'Sending...' : 'Send Completed Visits' }}
+                </button>
+              </div>
+            </div>
+
+            <div class="text-sm text-gray-500">
+              <p>💡 <strong>How it works:</strong></p>
+              <ol class="list-decimal ml-5 mt-2 space-y-1">
+                <li>Create schedules for future visits</li>
+                <li>Caregivers use the mobile app to clock in/out</li>
+                <li>Send schedules to EVV (schedule-only)</li>
+                <li>Send completed visits to EVV (with calls)</li>
+              </ol>
             </div>
           </div>
 
-          <!-- Loading State -->
-          <div v-if="loading" class="text-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-t-4 border-b-4 border-blue-500 mx-auto mb-4"></div>
-            <p class="text-gray-600">Loading visits...</p>
+          <!-- Results Section -->
+          <div v-if="uploadResult" class="mb-8">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">Upload Results</h3>
+            <div class="border border-gray-200 rounded-lg p-4"
+              :class="getStatusClass(uploadResult.evv_response?.status_code || uploadResult.status_code)">
+              <h4 class="font-medium mb-2">{{ getUploadStatusMessage(uploadResult) }}</h4>
+
+              <!-- Summary Information -->
+              <div v-if="uploadResult.count_sent !== undefined"
+                class="bg-white p-3 rounded border border-gray-200 mb-4">
+                <p class="text-sm"><strong>Records Sent:</strong> {{ uploadResult.count_sent }}</p>
+                <p class="text-sm"><strong>Invalid Records:</strong> {{ uploadResult.invalid_count }}</p>
+                <p class="text-sm"><strong>Message:</strong> {{ uploadResult.message }}</p>
+              </div>
+
+              <!-- Transaction Info -->
+              <div v-if="getTransactionId(uploadResult)" class="mt-4 pt-4 border-t border-gray-200">
+                <p class="text-sm"><strong>Transaction ID:</strong>
+                  <span class="ml-2 bg-gray-100 px-2 py-1 rounded font-mono text-red-600">{{
+                    getTransactionId(uploadResult) }}</span>
+                </p>
+                <button @click="checkVisitStatus(getTransactionId(uploadResult))"
+                  class="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                  Check Processing Status
+                </button>
+              </div>
+            </div>
           </div>
 
-          <!-- Visits Table -->
-          <div v-else class="overflow-x-auto bg-white rounded-lg border border-gray-200">
-            <table class="w-full">
-              <thead class="bg-gray-50">
-                <tr class="border-b border-gray-200">
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Client</th>
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Check In</th>
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Check Out</th>
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Duration</th>
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Services</th>
-                  <th class="text-left py-4 px-4 text-sm font-semibold text-gray-700">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="visit in filteredVisits" :key="visit.id"
-                  class="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td class="py-4 px-4">
-                    <div>
-                      <p class="text-sm font-medium text-gray-900">{{ getClientName(visit.client) }}</p>
-                      <p v-if="getClientDetails(visit.client)" class="text-xs text-gray-500">
-                        Age {{ getClientDetails(visit.client).age }}
-                      </p>
-                    </div>
-                  </td>
-                  <td class="py-4 px-4">
-                    <p class="text-sm text-gray-900">{{ formatTime(visit.check_in_time) }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDate(visit.check_in_time) }}</p>
-                  </td>
-                  <td class="py-4 px-4">
-                    <p class="text-sm text-gray-900">{{ formatTime(visit.check_out_time) }}</p>
-                    <p class="text-xs text-gray-500">{{ formatDate(visit.check_out_time) }}</p>
-                  </td>
-                  <td class="py-4 px-4">
-                    <span v-if="visit.hours_worked" class="text-sm font-medium text-gray-900">
-                      {{ formatDuration(visit.hours_worked) }}
-                    </span>
-                    <span v-else class="text-sm text-gray-400">-</span>
-                  </td>
-                  <td class="py-4 px-4">
-                    <div v-if="visit.services && visit.services.length > 0">
-                      <span class="text-sm text-gray-900">{{ visit.services.length }}</span>
-                      <div class="text-xs text-gray-500 mt-1 space-y-1">
-                        <div v-for="service in getCompletedServices(visit).slice(0, 2)" :key="service.id">
-                          {{ service.name }}
-                        </div>
-                        <div v-if="getCompletedServices(visit).length > 2" class="text-blue-600">
-                          +{{ getCompletedServices(visit).length - 2 }} more
-                        </div>
-                      </div>
-                    </div>
-                    <span v-else class="text-sm text-gray-400">-</span>
-                  </td>
-                  <td class="py-4 px-4">
-                    <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-                      :class="getStatusInfo(visit).class">
-                      <span class="mr-1">{{ getStatusInfo(visit).icon }}</span>
-                      {{ getStatusInfo(visit).text }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- Manual Status Check -->
+          <div class="pt-6 border-t border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900 mb-3">Check Upload Status</h3>
+            <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+              <div class="flex-grow">
+                <label for="manualTransactionId" class="block text-sm font-medium text-gray-700 mb-1">Transaction
+                  ID</label>
+                <input v-model="manualTransactionId" type="text" id="manualTransactionId"
+                  class="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter Transaction ID" />
+              </div>
+              <button @click="checkManualStatus" :disabled="checkingStatus"
+                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                {{ checkingStatus ? 'Checking...' : 'Check Status' }}
+              </button>
+            </div>
           </div>
-        </div>
-
-        <div v-if="filteredVisits.length === 0 && !loading" class="text-center py-12">
-          <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <h3 class="mt-2 text-sm font-medium text-gray-900">No visits found</h3>
-          <p class="mt-1 text-sm text-gray-500">No visit records available.</p>
-          <button @click="fetchData"
-            class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Refresh Data
-          </button>
         </div>
       </div>
     </div>
   </div>
 </template>
-
-<style scoped>
-.hover-lift:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-
-/* Smooth transitions for all interactive elements */
-button,
-.transition-all {
-  transition: all 0.2s ease-in-out;
-}
-</style>
