@@ -36,6 +36,15 @@ const newEmployee = ref({
   emergency_contact_relation: ""
 });
 
+const states = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
+  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
+  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
+  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY"
+];
+
+
 // Fetch employees from backend
 const fetchEmployees = async () => {
   loading.value = true;
@@ -387,9 +396,14 @@ onMounted(fetchEmployees);
 
                 <div>
                   <label for="state" class="block text-sm font-medium text-gray-700">State *</label>
-                  <input v-model="newEmployee.state" type="text" id="state"
-                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="State" />
+                  <select v-model="newEmployee.state" id="state" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3
+                        focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    <option disabled value="">Select State</option>
+
+                    <option v-for="state in states" :key="state" :value="state">
+                      {{ state }}
+                    </option>
+                  </select>
                 </div>
 
                 <div>
@@ -560,7 +574,7 @@ onMounted(fetchEmployees);
                 <div v-if="currentTransactionId" class="mb-3">
                   <p class="text-sm"><strong>Current Transaction ID:</strong>
                     <span class="ml-2 bg-gray-100 px-2 py-1 rounded font-mono text-red-600">{{ currentTransactionId
-                    }}</span>
+                      }}</span>
                   </p>
                   <button @click="checkCurrentStatus" :disabled="checkingStatus"
                     class="mt-2 inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -632,50 +646,80 @@ onMounted(fetchEmployees);
             </div>
 
             <div v-else-if="employees.length > 0" class="overflow-x-auto border border-gray-200 rounded-lg">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee ID
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Name
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Name
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SSN</th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">EVV Ready
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="employee in employees" :key="employee.id"
-                    :class="{ 'bg-green-50': isEmployeeReady(employee) }" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ employee.employee_id }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ employee.first_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ employee.last_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ maskSSN(employee.ssn) }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ employee.position || 'N/A' }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                      <span v-if="isEmployeeReady(employee)"
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Ready
-                      </span>
-                      <span v-else
-                        class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Missing Data
-                      </span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              <div class="overflow-x-auto w-full">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Employee ID
+                      </th>
+
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        First Name
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Name
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        SSN
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Position
+                      </th>
+
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        EVV Ready
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="employee in employees" :key="employee.id"
+                      :class="{ 'bg-green-50': isEmployeeReady(employee) }" class="hover:bg-gray-50">
+                      <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {{ employee.employee_id }}
+                      </td>
+
+                      <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ employee.first_name }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ employee.last_name }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ maskSSN(employee.ssn) }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ employee.position || 'N/A' }}
+                      </td>
+
+                      <td class="px-4 py-4 whitespace-nowrap">
+                        <span v-if="isEmployeeReady(employee)"
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Ready
+                        </span>
+
+                        <span v-else
+                          class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Missing Data
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div v-else class="text-center py-8 text-gray-500 italic">

@@ -791,44 +791,84 @@ onMounted(fetchClients);
               Loading clients...
             </div>
 
-            <div v-else-if="clients.length > 0" class="overflow-x-auto border border-gray-200 rounded-lg">
+            <div v-else-if="clients.length > 0" class="overflow-x-auto w-full border border-gray-200 rounded-lg">
               <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client ID
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Name
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Name
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">DOB</th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Medicaid ID
-                    </th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-                    <th scope="col"
-                      class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timezone
-                    </th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <tr v-for="client in clients" :key="client.id" class="hover:bg-gray-50">
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ client.client_id }}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.first_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.last_name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.dob }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.medicaid_id || 'N/A' }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.phone || 'N/A' }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ client.timezone ||
-                      'America/Phoenix' }}</td>
-                  </tr>
-                </tbody>
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead class="bg-gray-50">
+                    <tr>
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Client ID
+                      </th>
+
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        First Name
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Last Name
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        DOB
+                      </th>
+
+                      <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Medicaid ID
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Phone
+                      </th>
+
+                      <!-- Hidden on small screens -->
+                      <th
+                        class="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Timezone
+                      </th>
+                    </tr>
+                  </thead>
+
+                  <tbody class="bg-white divide-y divide-gray-200">
+                    <tr v-for="client in clients" :key="client.id" class="hover:bg-gray-50">
+
+                      <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {{ client.client_id }}
+                      </td>
+
+                      <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.first_name }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.last_name }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.dob }}
+                      </td>
+
+                      <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.medicaid_id || 'N/A' }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.phone || 'N/A' }}
+                      </td>
+
+                      <td class="hidden md:table-cell px-4 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {{ client.timezone || 'America/Phoenix' }}
+                      </td>
+
+                    </tr>
+                  </tbody>
+                </table>
+
               </table>
             </div>
 
