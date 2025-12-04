@@ -1,279 +1,383 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { reactive, ref } from 'vue'
 import axiosInstance from '@/axiosconfig/axiosInstance'
 
-// Component state
-const sidebarOpen = ref(false)
-const settings = ref({
-  street_address: '',
-  address2: '',
-  city: '',
-  state: '',
-  zip_code: '',
-  manager_name: '',
+
+const form = reactive({
+  current_password: '',
+  new_password: '',
+  confirm_password: '',
 })
 
-const isLoading = ref(true)
-const isSubmitting = ref(false)
-const showSuccess = ref(false)
-const showError = ref(false)
+const errors = reactive({
+  current_password: '',
+  new_password: '',
+  confirm_password: '',
+})
 
+const message = reactive({
+  text: '',
+  type: '',
+})
 
-// Data fetching
-const fetchSettings = async () => {
+const loading = ref(false)
+const showPassword = reactive({
+  current: false,
+  new: false,
+  confirm: false
+})
+
+const validateForm = () => {
+  let isValid = true
+
+  errors.current_password = ''
+  errors.new_password = ''
+  errors.confirm_password = ''
+
+  if (!form.current_password) {
+    errors.current_password = 'Current password is required'
+    isValid = false
+  }
+
+  if (!form.new_password) {
+    errors.new_password = 'New password is required'
+    isValid = false
+  } else if (form.new_password.length < 8) {
+    errors.new_password = 'Password must be at least 8 characters'
+    isValid = false
+  } else if (!/[A-Z]/.test(form.new_password)) {
+    errors.new_password = 'Password must contain at least one uppercase letter'
+    isValid = false
+  } else if (!/[0-9]/.test(form.new_password)) {
+    errors.new_password = 'Password must contain at least one number'
+    isValid = false
+  } else if (!/[^A-Za-z0-9]/.test(form.new_password)) {
+    errors.new_password = 'Password must contain at least one special character'
+    isValid = false
+  }
+
+  if (!form.confirm_password) {
+    errors.confirm_password = 'Please confirm your new password'
+    isValid = false
+  } else if (form.new_password !== form.confirm_password) {
+    errors.confirm_password = 'Passwords do not match'
+    isValid = false
+  }
+
+  return isValid
+}
+
+const changePassword = async () => {
+  if (!validateForm()) return
+
+  loading.value = true
+  message.text = ''
+
   try {
-    const response = await axiosInstance.get('/api/user/settings/')
-    settings.value = response.data
+    const response = await axiosInstance.post(
+      'https://backend.mycityradiusattendance.com/api/change-password/',
+      {
+        current_password: form.current_password,
+        new_password: form.new_password,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('access_token')}`,
+        },
+      },
+    )
+
+    message.text = response.data.detail || 'Password changed successfully'
+    message.type = 'success'
+
+    form.current_password = ''
+    form.new_password = ''
+    form.confirm_password = ''
+
+    showPassword.current = false
+    showPassword.new = false
+    showPassword.confirm = false
   } catch (error) {
-    if (error.response && error.response.status === 404) {
-      console.log('No settings found')
-    } else {
-      console.error(error)
-      showError.value = true
+    let errorMessage = 'An error occurred while changing password'
+
+    if (error.response) {
+      if (error.response.data.detail) {
+        errorMessage = error.response.data.detail
+      } else if (error.response.data.new_password) {
+        errorMessage = error.response.data.new_password.join(' ')
+      }
     }
+
+    message.text = errorMessage
+    message.type = 'error'
   } finally {
-    isLoading.value = false
+    loading.value = false
   }
 }
 
-// Form submission
-const confirmDetails = () => {
-  isSubmitting.value = true
-  showError.value = false
-  showSuccess.value = false
-
-  try {
-    // Simulate confirmation
-    showSuccess.value = true
-    setTimeout(() => {
-      showSuccess.value = false
-    }, 3000)
-  } catch (error) {
-    console.error(error)
-    showError.value = true
-  } finally {
-    isSubmitting.value = false
-  }
+const togglePasswordVisibility = (field) => {
+  showPassword[field] = !showPassword[field]
 }
-
-onMounted(fetchSettings)
 </script>
 
 <template>
-  <div class="flex flex-1 min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+  <!-- Main Container with Fade-in Animation -->
+  <div class=" py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+    <div
+      class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
+      <div class="bg-gradient-to-r from-teal-600 to-emerald-500  p-6 text-white">
+        <div class="flex items-center space-x-3">
+          <!-- Animated Lock Icon -->
+          <div class="relative">
+            <svg class="h-10 w-10 text-white animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            <div class="absolute -top-1 -right-1 bg-yellow-400 rounded-full w-4 h-4 flex items-center justify-center">
+              <svg class="h-3 w-3 text-yellow-800" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd"
+                  d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                  clip-rule="evenodd" />
+              </svg>
+            </div>
+          </div>
+          <div>
+            <h2 class="text-2xl font-bold">Change Password</h2>
+            <p class="text-indigo-100 text-sm">Secure your account with a new password</p>
+          </div>
+        </div>
+      </div>
 
-    <!-- Main Content with Sidebar -->
-    <div class="flex flex-1">
+      <!-- Card Body -->
+      <div class="p-6">
+        <form @submit.prevent="changePassword" class="space-y-6">
+          <!-- Current Password -->
+          <div class="space-y-2">
+            <label for="current_password" class="block text-sm font-medium text-gray-700">Current Password</label>
+            <div class="relative">
+              <input v-model="form.current_password" :type="showPassword.current ? 'text' : 'password'"
+                id="current_password" name="current_password" required
+                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                :class="{ 'border-red-500': errors.current_password, 'pr-10': true }"
+                placeholder="Enter your current password" />
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                @click="togglePasswordVisibility('current')">
+                <svg class="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors duration-200" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    :d="showPassword.current ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21' : 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'" />
+                </svg>
+              </button>
+            </div>
+            <transition name="fade">
+              <p v-if="errors.current_password" class="mt-1 text-sm text-red-600 flex items-start">
+                <svg class="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ errors.current_password }}
+              </p>
+            </transition>
+          </div>
 
-      <!-- Main Content Area -->
-      <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-2' : 'lg:ml-0'">
-        <div class="py-10 px-4 sm:px-6 lg:px-6">
-          <div class="max-w-3xl mx-auto">
-            <!-- Success Alert -->
-            <transition enter-active-class="transition ease-out duration-300"
-              enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100"
-              leave-active-class="transition ease-in duration-200" leave-from-class="transform opacity-100 scale-100"
-              leave-to-class="transform opacity-0 scale-95">
-              <div v-if="showSuccess" class="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-green-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                      fill="currentColor">
-                      <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                        clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-green-800">Details confirmed successfully!</p>
-                  </div>
-                </div>
+          <!-- New Password -->
+          <div class="space-y-2">
+            <label for="new_password" class="block text-sm font-medium text-gray-700">New Password</label>
+            <div class="relative">
+              <input v-model="form.new_password" :type="showPassword.new ? 'text' : 'password'" id="new_password"
+                name="new_password" required
+                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                :class="{ 'border-red-500': errors.new_password, 'pr-10': true }" placeholder="Create a new password" />
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                @click="togglePasswordVisibility('new')">
+                <svg class="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors duration-200" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    :d="showPassword.new ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21' : 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'" />
+                </svg>
+              </button>
+            </div>
+
+            <!-- Password Strength Meter -->
+            <div class="mt-2">
+              <div class="flex space-x-1">
+                <div v-for="i in 4" :key="i" class="h-1.5 flex-1 rounded-full bg-gray-200" :class="{
+                  'bg-red-400': form.new_password.length > 0 && form.new_password.length < 4,
+                  'bg-yellow-400': form.new_password.length >= 4 && form.new_password.length < 8,
+                  'bg-green-400': form.new_password.length >= 8 && (
+                    !/[A-Z]/.test(form.new_password) ||
+                    !/[0-9]/.test(form.new_password) ||
+                    !/[^A-Za-z0-9]/.test(form.new_password)
+                  ),
+                  'bg-indigo-500': form.new_password.length >= 8 &&
+                    /[A-Z]/.test(form.new_password) &&
+                    /[0-9]/.test(form.new_password) &&
+                    /[^A-Za-z0-9]/.test(form.new_password)
+                }" :style="{ width: form.new_password.length > 0 ? '100%' : '0%', transition: 'all 0.3s ease' }"></div>
               </div>
+
+              <p class="mt-1 text-xs text-gray-500">
+                <span v-if="form.new_password.length > 0 && form.new_password.length < 4">Very weak</span>
+                <span v-else-if="form.new_password.length >= 4 && form.new_password.length < 8">Weak</span>
+                <span
+                  v-else-if="form.new_password.length >= 8 && (!/[A-Z]/.test(form.new_password) || !/[0-9]/.test(form.new_password) || !/[^A-Za-z0-9]/.test(form.new_password))">Good</span>
+                <span
+                  v-else-if="form.new_password.length >= 8 && /[A-Z]/.test(form.new_password) && /[0-9]/.test(form.new_password) && /[^A-Za-z0-9]/.test(form.new_password)">Strong</span>
+                <span v-else>Password strength</span>
+              </p>
+            </div>
+
+            <transition name="fade">
+              <p v-if="errors.new_password" class="mt-1 text-sm text-red-600 flex items-start">
+                <svg class="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ errors.new_password }}
+              </p>
             </transition>
 
-            <!-- Error Alert -->
-            <transition enter-active-class="transition ease-out duration-300"
-              enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100"
-              leave-active-class="transition ease-in duration-200" leave-from-class="transform opacity-100 scale-100"
-              leave-to-class="transform opacity-0 scale-95">
-              <div v-if="showError" class="mb-6 p-4 bg-red-50 rounded-lg border border-red-200">
-                <div class="flex items-center">
-                  <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"
-                      fill="currentColor">
-                      <path fill-rule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clip-rule="evenodd" />
-                    </svg>
-                  </div>
-                  <div class="ml-3">
-                    <p class="text-sm font-medium text-red-800">
-                      An error occurred while processing your request.
-                    </p>
-                  </div>
-                </div>
+            <div class="mt-2 grid grid-cols-2 gap-2 text-xs text-gray-500">
+              <div class="flex items-center" :class="{ 'text-green-600': form.new_password.length >= 8 }">
+                <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+                    :class="{ 'opacity-0': form.new_password.length < 8 }" />
+                </svg>
+                8+ characters
               </div>
-            </transition>
-
-            <div class="bg-white shadow-xl rounded-xl overflow-hidden">
-              <!-- Header -->
-              <div class="px-6 py-5 bg-gradient-to-r from-teal-600 to-emerald-500">
-                <h2 class="text-2xl font-bold text-white">User Settings</h2>
-                <p class="mt-1 text-indigo-100">Your personal and address information, contact manager for changes</p>
+              <div class="flex items-center" :class="{ 'text-green-600': /[A-Z]/.test(form.new_password) }">
+                <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+                    :class="{ 'opacity-0': !/[A-Z]/.test(form.new_password) }" />
+                </svg>
+                Uppercase
               </div>
-
-              <!-- Loading State -->
-              <div v-if="isLoading" class="p-8 flex justify-center">
-                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+              <div class="flex items-center" :class="{ 'text-green-600': /[0-9]/.test(form.new_password) }">
+                <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+                    :class="{ 'opacity-0': !/[0-9]/.test(form.new_password) }" />
+                </svg>
+                Number
               </div>
-
-              <!-- Content -->
-              <div v-else class="px-6 py-8 space-y-6">
-                <!-- Address Section -->
-                <div class="space-y-4">
-                  <h3 class="text-lg font-medium text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    Address Information
-                  </h3>
-
-                  <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
-                    <!-- Street Address -->
-                    <div class="sm:col-span-6">
-                      <label class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Street Address
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.street_address || 'Not provided' }}
-                      </div>
-                    </div>
-
-                    <!-- Address Line 2 -->
-                    <div class="sm:col-span-6" v-if="settings.address2">
-                      <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Address Line 2
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.address2 }}
-                      </div>
-                    </div>
-
-                    <!-- City -->
-                    <div class="sm:col-span-3">
-                      <label class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        City
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.city || 'Not provided' }}
-                      </div>
-                    </div>
-
-                    <!-- State -->
-                    <div class="sm:col-span-2">
-                      <label class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        State
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.state || 'Not provided' }}
-                      </div>
-                    </div>
-
-                    <!-- ZIP Code -->
-                    <div class="sm:col-span-1">
-                      <label class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        ZIP Code
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.zip_code || 'Not provided' }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Manager Section -->
-                <div class="space-y-4">
-                  <h3 class="text-lg font-medium text-gray-900 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    Manager Information
-                  </h3>
-
-                  <div class="grid grid-cols-1 gap-y-4 gap-x-6 sm:grid-cols-6">
-                    <div class="sm:col-span-6">
-                      <label class="text-sm font-medium text-gray-700 mb-1 flex items-center">
-                        <svg class="w-4 h-4 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Manager Name
-                      </label>
-                      <div class="mt-1 text-sm text-gray-900 bg-gray-50 p-3 rounded-md border border-gray-200">
-                        {{ settings.manager_name || 'Not provided' }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Form Actions -->
-                <div class="flex flex-col sm:flex-row justify-between pt-6 border-t border-gray-200 gap-4">
-                  <div class="text-sm text-gray-500">
-                    Last updated: {{ new Date().toLocaleDateString() }}
-                  </div>
-                  <div class="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                    <button type="button" @click="confirmDetails" :disabled="isSubmitting"
-                      class="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 hover:shadow-md disabled:opacity-75 disabled:cursor-not-allowed">
-                      <svg v-if="isSubmitting" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
-                        xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4">
-                        </circle>
-                        <path class="opacity-75" fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
-                        </path>
-                      </svg>
-                      <svg v-else class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                      </svg>
-                      {{ isSubmitting ? 'Confirming...' : 'Confirm Details' }}
-                    </button>
-                    <a href="mailto:cityradiuschs@gmail.com">
-                      <button type="button"
-                        class="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 w-full sm:w-auto">
-                        <svg class="-ml-1 mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        Contact Manager
-                      </button>
-                    </a>
-                  </div>
-                </div>
+              <div class="flex items-center" :class="{ 'text-green-600': /[^A-Za-z0-9]/.test(form.new_password) }">
+                <svg class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"
+                    :class="{ 'opacity-0': !/[^A-Za-z0-9]/.test(form.new_password) }" />
+                </svg>
+                Special char
               </div>
             </div>
           </div>
-        </div>
-      </main>
+
+          <!-- Confirm New Password -->
+          <div class="space-y-2">
+            <label for="confirm_password" class="block text-sm font-medium text-gray-700">Confirm New Password</label>
+            <div class="relative">
+              <input v-model="form.confirm_password" :type="showPassword.confirm ? 'text' : 'password'"
+                id="confirm_password" name="confirm_password" required
+                class="block w-full px-4 py-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                :class="{ 'border-red-500': errors.confirm_password, 'pr-10': true }"
+                placeholder="Confirm your new password" />
+              <button type="button" class="absolute inset-y-0 right-0 pr-3 flex items-center"
+                @click="togglePasswordVisibility('confirm')">
+                <svg class="h-5 w-5 text-gray-400 hover:text-indigo-600 transition-colors duration-200" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    :d="showPassword.confirm ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21' : 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'" />
+                </svg>
+              </button>
+            </div>
+            <transition name="fade">
+              <p v-if="errors.confirm_password" class="mt-1 text-sm text-red-600 flex items-start">
+                <svg class="h-4 w-4 mr-1 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {{ errors.confirm_password }}
+              </p>
+            </transition>
+          </div>
+
+          <transition name="slide-fade">
+            <div v-if="message.text" class="rounded-lg p-4 border-l-4" :class="{
+              'bg-green-50 text-green-800 border-green-500': message.type === 'success',
+              'bg-red-50 text-red-800 border-red-500': message.type === 'error',
+            }">
+              <div class="flex items-center">
+                <svg v-if="message.type === 'success'" class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <svg v-if="message.type === 'error'" class="h-5 w-5 text-red-500 mr-3 flex-shrink-0" fill="none"
+                  viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p class="text-sm font-medium">{{ message.text }}</p>
+              </div>
+            </div>
+          </transition>
+
+          <!-- Submit Button with Hover Animation -->
+          <div>
+            <button type="submit"
+              class="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-300 hover:shadow-md transform hover:-translate-y-0.5"
+              :disabled="loading">
+              <svg v-if="loading" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg"
+                fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                </path>
+              </svg>
+              {{ loading ? 'Changing Password...' : 'Change Password' }}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 </template>
+
+<style>
+.animate-fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateX(20px);
+  opacity: 0;
+}
+</style>

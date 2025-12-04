@@ -25,6 +25,10 @@ const notification = ref({
   type: 'success',
 })
 
+// User role management
+const userRole = ref('')
+const loadingUserRole = ref(false)
+
 // Sidebar state
 const sidebarOpen = ref(true)
 
@@ -161,6 +165,10 @@ const currentTime = computed(() => {
   })
 })
 
+const isAdmin = computed(() => {
+  return userRole.value === 'admin' || userRole.value === 'superuser'
+})
+
 // Helper functions
 const showNotification = (message, type = 'success') => {
   notification.value = { show: true, message, type }
@@ -174,6 +182,12 @@ const toggleSidebar = () => {
 }
 
 const handleNavigation = (route) => {
+  // Check if user has permission to access the route
+  if (!isAdmin.value && ['clients', 'visits', 'services', 'xrefs'].includes(route)) {
+    showNotification('Access denied. Admin privileges required.', 'error')
+    return
+  }
+
   currentView.value = route
   if (route === 'dashboard') {
     fetchDashboardData()
@@ -201,6 +215,25 @@ const generateSequenceID = () => {
 const generateCallExternalID = (prefix) => {
   const timestamp = Date.now();
   return `${prefix}${timestamp.toString().slice(-8)}`;
+}
+
+// Fetch user role from backend
+const fetchUserRole = async () => {
+  try {
+    loadingUserRole.value = true
+    // Assuming you have an endpoint that returns user info including role
+    const response = await axiosInstance.get('api/user-info/')
+    userRole.value = response.data.role || 'caregiver'
+
+    // Store role in localStorage for persistence
+    localStorage.setItem('user_role', userRole.value)
+  } catch (error) {
+    console.error('Error fetching user role:', error)
+    // Fallback to localStorage or default to caregiver
+    userRole.value = localStorage.getItem('user_role') || 'caregiver'
+  } finally {
+    loadingUserRole.value = false
+  }
 }
 
 // Data fetching
@@ -760,7 +793,8 @@ const startAutoRefresh = () => {
 }
 
 // Initialize
-onMounted(() => {
+onMounted(async () => {
+  await fetchUserRole()
   fetchDashboardData()
   startAutoRefresh()
 
@@ -776,7 +810,9 @@ onMounted(() => {
   <div class="min-h-screen bg-gray-50 flex">
     <TheNavbar />
 
-    <TheSidebar :sidebarOpen="sidebarOpen" @toggleSidebar="toggleSidebar" @navigate="handleNavigation" />
+    <!-- Pass isAdmin to Sidebar for conditional rendering -->
+    <TheSidebar :sidebarOpen="sidebarOpen" :isAdmin="isAdmin" @toggleSidebar="toggleSidebar"
+      @navigate="handleNavigation" />
 
     <!-- Main Content -->
     <div class="flex-1 flex mt-17 flex-col lg:ml-0">
@@ -854,7 +890,7 @@ onMounted(() => {
                     <span v-else class="text-gray-500">Available</span>
                   </p>
                   <p class="text-xs text-gray-500 mt-1">GPS: {{ locationStatus.verified ? '✓ Ready' : 'Needs permission'
-                  }}</p>
+                    }}</p>
                 </div>
               </div>
             </div>
@@ -1214,7 +1250,6 @@ onMounted(() => {
               </div>
 
               <!-- Action Buttons -->
-              <!-- Action Buttons -->
               <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                 <button @click="goBack" type="button"
                   class="px-6 py-3 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors">
@@ -1222,21 +1257,45 @@ onMounted(() => {
                 </button>
                 <button @click="submitCaregiverCheckOut" type="button"
                   class="px-6 py-3 border border-transparent rounded-lg text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none transition-colors shadow-sm">
-                  Confirm Check Out <!-- ✅ CORRECTED -->
+                  Confirm Check Out
                 </button>
               </div>
             </div>
           </div>
         </div>
+        <div v-else-if="['profile', 'settings'].includes(currentView)">
+          <ProfilePage v-if="currentView === 'profile'" />
+          <SettingsPage v-else-if="currentView === 'settings'" />
+        </div>
 
-        <!-- Other Views -->
-        <ClientsView v-else-if="currentView === 'clients'" />
-        <VisitsView v-else-if="currentView === 'visits'" />
-        <EmployeeView v-else-if="currentView === 'services'" />
-        <XrefsPage v-else-if="currentView === 'xrefs'" />
-        <SettingsPage v-else-if="currentView === 'settings'" />
-        <ProfilePage v-else-if="currentView === 'profile'" />
-        <PasswordChange v-else-if="currentView === 'password'" />
+
+        <!-- Other Views - Only show if user is admin -->
+        <div v-else-if="isAdmin">
+          <ClientsView v-if="currentView === 'clients'" />
+          <VisitsView v-else-if="currentView === 'visits'" />
+          <EmployeeView v-else-if="currentView === 'services'" />
+          <XrefsPage v-else-if="currentView === 'xrefs'" />
+          <SettingsPage v-else-if="currentView === 'settings'" />
+          <ProfilePage v-else-if="currentView === 'profile'" />
+          <PasswordChange v-else-if="currentView === 'password'" />
+        </div>
+
+        <!-- Access Denied View -->
+        <div v-else-if="!isAdmin && ['clients', 'visits', 'services', 'xrefs'].includes(currentView)"
+          class="flex flex-col items-center justify-center py-12">
+          <svg class="w-16 h-16 text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+          <h2 class="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p class="text-gray-600 text-center max-w-md mb-6">
+            This page requires administrator privileges. Please contact your supervisor if you need access.
+          </p>
+          <button @click="currentView = 'dashboard'"
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Return to Dashboard
+          </button>
+        </div>
 
       </main>
     </div>
