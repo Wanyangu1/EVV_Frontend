@@ -890,7 +890,7 @@ onMounted(async () => {
                     <span v-else class="text-gray-500">Available</span>
                   </p>
                   <p class="text-xs text-gray-500 mt-1">GPS: {{ locationStatus.verified ? '✓ Ready' : 'Needs permission'
-                    }}</p>
+                  }}</p>
                 </div>
               </div>
             </div>

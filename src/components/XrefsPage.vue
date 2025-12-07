@@ -575,7 +575,7 @@ const copyToClipboard = (text) => {
     </div>
 
     <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-7xl mx-auto md:px-4 lg:px-8 py-8">
       <!-- Relationships List - Mobile -->
       <div v-if="activeTab === 'list' && isMobile" class="space-y-4">
         <div class="bg-white rounded-lg shadow p-4">

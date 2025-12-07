@@ -302,16 +302,16 @@ onMounted(fetchEmployees);
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
+  <div class="min-h-screen bg-gray-50 py-4 md:px-0 lg:px-6">
+    <div class="max-w-5xl mx-auto">
       <!-- Page Header -->
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">EVV Employees Management</h1>
+      <div class="mb-8">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">EVV Employees Management</h1>
         <p class="text-lg text-gray-600">Manage and upload employee data to EVV system</p>
       </div>
 
       <div class="bg-white shadow rounded-lg overflow-hidden">
-        <div class="p-6">
+        <div class="p-4">
           <!-- Add Employee Section -->
           <div class="mb-8 pb-6 border-b border-gray-200">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Add New Employee</h2>
@@ -324,7 +324,7 @@ onMounted(fetchEmployees);
             </div>
 
             <!-- Employee Form -->
-            <div v-if="showCustomForm" class="mt-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+            <div v-if="showCustomForm" class="mt-6 p-3 border border-gray-200 rounded-lg bg-gray-50">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Employee Onboarding Form</h3>
 
               <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

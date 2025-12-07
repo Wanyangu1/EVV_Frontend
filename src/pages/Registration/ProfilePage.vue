@@ -39,7 +39,7 @@ const fetchUserProfile = async () => {
     if (error.response && error.response.status === 404) {
       // Try to get user info from user-info endpoint
       try {
-        const userInfoResponse = await axiosInstance.get('/api/accounts/user-info/')
+        const userInfoResponse = await axiosInstance.get('/api/user-info/')
         userProfile.value = {
           ...userInfoResponse.data,
           profile: {
@@ -164,7 +164,7 @@ onMounted(fetchUserProfile)
 
       <!-- Main Content Area -->
       <main class="flex-1 transition-all duration-300 ease-in-out" :class="sidebarOpen ? 'lg:ml-2' : 'lg:ml-0'">
-        <div class="py-10 px-4 sm:px-6 lg:px-6">
+        <div class="md:py-4 md:px-4 lg:px-6">
           <div class="max-w-3xl mx-auto">
             <!-- Success Alert -->
             <transition enter-active-class="transition ease-out duration-300"

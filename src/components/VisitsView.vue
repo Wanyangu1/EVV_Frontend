@@ -368,16 +368,16 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-7xl mx-auto">
+  <div class="min-h-screen bg-gray-50 py-4 md:px-4 lg:px-6">
+    <div class="max-w-5xl mx-auto">
       <!-- Page Header -->
-      <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">EVV Schedule Management</h1>
-        <p class="text-lg text-gray-600">Create schedules and manage EVV data</p>
+      <div class="mb-8">
+        <h1 class="text-xl md:text-2xl font-bold text-gray-900 mb-2">EVV Schedule Management</h1>
+        <p class="text-md text-gray-600">Create schedules and manage EVV data</p>
       </div>
 
       <div class="bg-white shadow rounded-lg overflow-hidden">
-        <div class="p-6">
+        <div class="p-3 md:p-4">
           <!-- Create Schedule Section -->
           <div class="mb-8 pb-6 border-b border-gray-200">
             <div class="flex justify-between items-center mb-4">
@@ -389,7 +389,7 @@ onMounted(() => {
             </div>
 
             <!-- Schedule Creation Form -->
-            <div v-if="showScheduleForm" class="mt-6 p-6 border border-gray-200 rounded-lg bg-gray-50">
+            <div v-if="showScheduleForm" class="mt-6 p-3 md:p-6 border border-gray-200 rounded-lg bg-gray-50">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Schedule Details</h3>
 
               <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">

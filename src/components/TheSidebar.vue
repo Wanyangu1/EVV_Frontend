@@ -27,7 +27,7 @@ const fetchUserInfo = async () => {
     loadingUser.value = true
     userError.value = null
 
-    const response = await axiosInstance.get('/api/accounts/user-info/')
+    const response = await axiosInstance.get('/api/user-info/')
     userData.value = response.data
 
     // Store in localStorage as fallback

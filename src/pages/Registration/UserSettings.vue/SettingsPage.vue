@@ -122,10 +122,10 @@ const togglePasswordVisibility = (field) => {
 
 <template>
   <!-- Main Container with Fade-in Animation -->
-  <div class=" py-12 px-4 sm:px-6 lg:px-8 animate-fade-in">
+  <div class=" md:py-4 md:px-4 lg:px-8 animate-fade-in">
     <div
       class="max-w-md mx-auto bg-white rounded-2xl shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl">
-      <div class="bg-gradient-to-r from-teal-600 to-emerald-500  p-6 text-white">
+      <div class="bg-gradient-to-r from-teal-600 to-emerald-500  p-4 text-white">
         <div class="flex items-center space-x-3">
           <!-- Animated Lock Icon -->
           <div class="relative">
