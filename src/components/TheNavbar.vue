@@ -61,7 +61,7 @@ onBeforeUnmount(() => {
           <router-link to="/home">
             <!-- Background wrapper around logo -->
             <div class="bg-black/20 rounded-md p-1 flex items-center justify-center shadow-lg shadow-sky-blue/20">
-              <img src="@/assets/logos/logo.jpg" class="h-8 w-10 object-contain" alt="DivineAngelCare Logo" />
+              <img src="@/assets/logoss/logo.jpg" class="h-8 w-10 object-contain" alt="DivineAngelCare Logo" />
               <h3 class="text-blue-400 font-bold">Brightpath EVV</h3>
             </div>
           </router-link>

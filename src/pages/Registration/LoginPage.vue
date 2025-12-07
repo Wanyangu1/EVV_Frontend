@@ -1,7 +1,7 @@
 <script setup>
 import useAuth from '@/composables/useAuth'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import logoImage from '@/assets/logos/logo.jpg'
+import logoImage from '@/assets/logoss/logo.jpg'
 import bgImage from '@/assets/General/senior-reading.jpg'
 
 // Health service specific images
