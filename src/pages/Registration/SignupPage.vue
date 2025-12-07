@@ -88,7 +88,7 @@ const { name, email, password, signup, authError } = useAuth()
         </div>
       </div>
 
-      <!-- Signup Form Section - Full width on mobile, half on larger screens -->
+
       <div class="w-full lg:w-1/2 flex items-center justify-center p-6 lg:p-8">
         <div
           class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
