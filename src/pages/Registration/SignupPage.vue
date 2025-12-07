@@ -94,7 +94,7 @@ const { name, email, password, signup, authError } = useAuth()
           class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 md:p-10 border border-gray-100 hover:shadow-2xl transition-shadow duration-300">
           <div class="flex flex-col items-center mb-8">
             <div class="mb-4 p-3 bg-blue-50 rounded-full">
-              <img src="@/assets/logoss/logo1.png" class="h-12" alt="City Radius CHS" />
+              <img src="@/assets/logoss/logo.jpg" class="h-12" alt="City Radius CHS" />
             </div>
             <h2 class="text-3xl font-bold text-gray-800 text-center">Create Employee Account</h2>
             <p class="text-gray-600 mt-2 text-center">
